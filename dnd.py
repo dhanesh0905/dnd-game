@@ -31,14 +31,15 @@ class Player:
     def __init__(self, char_name):
         stats = CHARACTER_CLASSES[char_name]
         self.name = char_name
-        self.health = stats["health"]
-        self.mana = stats["mana"]
+        self.max_health = stats["health"]
+        self.max_mana = stats["mana"]
         self.strength = stats["strength"]
         self.agility = stats["agility"]
         self.intelligence = stats["intelligence"]
         self.description = stats["description"]
-        self.current_health = self.health
-        self.current_mana = self.mana
+        self.current_health = self.max_health
+        self.current_mana = self.max_mana
+        self.skill_points = 0
 
     def is_alive(self):
         return self.current_health > 0
@@ -48,21 +49,21 @@ class Player:
         return damage
 
     def use_ability(self):
-        if self.name == "Warrior":
+        if self.name == "knight":
             cost = 10
             if self.current_mana < cost:
                 return (0, "Not enough mana for Power Strike!")
             self.current_mana -= cost
             damage = self.strength * 2 + random.randint(5, 10)
             return (damage, f"Power Strike deals {damage} damage!")
-        elif self.name == "Mage":
+        elif self.name == "magierin":
             cost = 25
             if self.current_mana < cost:
                 return (0, "Not enough mana for Fireball!")
             self.current_mana -= cost
             damage = self.intelligence * 3 + random.randint(10, 15)
             return (damage, f"Fireball deals {damage} magic damage!")
-        elif self.name == "Rogue":
+        elif self.name == "the shadow":
             cost = 15
             if self.current_mana < cost:
                 return (0, "Not enough mana for Backstab!")
@@ -76,6 +77,29 @@ class Player:
                 return (damage, f"Backstab hits for {damage} damage!")
         else:
             return (0, "No ability found.")
+
+    def add_skill_point(self):
+        self.skill_points += 1
+
+    def spend_skill_point(self, stat):
+        if self.skill_points <= 0:
+            return False
+        if stat == "strength":
+            self.strength += 1
+        elif stat == "agility":
+            self.agility += 1
+        elif stat == "intelligence":
+            self.intelligence += 1
+        elif stat == "health":
+            self.max_health += 10
+            self.current_health += 10
+        elif stat == "mana":
+            self.max_mana += 10
+            self.current_mana += 10
+        else:
+            return False
+        self.skill_points -= 1
+        return True
 class Enemy:
     def __init__(self, name, health, strength, description):
         self.name = name

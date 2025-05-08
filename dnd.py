@@ -118,6 +118,6 @@ FLOORS = [
      "puzzle": {"question": "What gets wetter as it dries?", "answer": "towel"}},
     {"name": "Dragon's Cave", "enemy": {"name":"Young Dragon", "health":250, "strength":30, "description":"A fierce dragon with fiery breath."},
      "puzzle": {"question": "What belongs to you but is used by others more than you?", "answer": "your name"}},
-    {"name": "Demon Gate", "enemy": {"name":"Demon Lord", "health":300, "strength":35, "description":"The ultimate evil to defeat."},
+    {"name": "Demon Gate", "enemy": {"name":"Demon Lord", "health":800, "strength":45, "description":"The ultimate evil to defeat."},
      "puzzle": {"question": "The more of this there is, the less you see. What is it?", "answer": "darkness"}},
 ]

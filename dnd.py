@@ -1,9 +1,8 @@
 import random
-import sys
 
 # Starter stats for character classes
 CHARACTER_CLASSES = {
-    "Warrior": {
+    "knight": {
         "health": 120,
         "mana": 30,
         "strength": 15,
@@ -11,7 +10,7 @@ CHARACTER_CLASSES = {
         "intelligence": 5,
         "description": "Strong melee fighter."
     },
-    "Mage": {
+    "magierin": {
         "health": 70,
         "mana": 120,
         "strength": 5,
@@ -19,7 +18,7 @@ CHARACTER_CLASSES = {
         "intelligence": 18,
         "description": "Powerful spellcaster."
     },
-    "Rogue": {
+    "the shadow": {
         "health": 90,
         "mana": 50,
         "strength": 12,

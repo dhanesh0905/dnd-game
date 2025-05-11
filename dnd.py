@@ -8,7 +8,6 @@ CLASSES = {
         "mana": 20,
         "strength": 15,
         "agility": 8,
-        "intelligence": 5,
         "description": "A strong melee fighter with high health and strength."
     },
     "Mage": {
@@ -16,7 +15,6 @@ CLASSES = {
         "mana": 100,
         "strength": 5,
         "agility": 10,
-        "intelligence": 18,
         "description": "A spellcaster with powerful magic but low health."
     },
     "Shadow": {
@@ -24,7 +22,6 @@ CLASSES = {
         "mana": 40,
         "strength": 10,
         "agility": 18,
-        "intelligence": 7,
         "description": "A stealthy assassin with high agility and balanced stats."
     },
 }
@@ -54,7 +51,8 @@ PUZZLES = {
     3: {"question": "I have cities, but no houses; forests, but no trees; and water, but no fish. What am I?", "answer": "map"},
     4: {"question": "What can fill a room but takes up no space?", "answer": "light"},
     5: {"question": "What has keys but can't open locks?", "answer": "piano"},
-    6: {"question": "I am always hungry and will die if not fed, but whatever I touch will soon turn red. What am I?", "answer": "fire"},}
+    6: {"question": "I am always hungry and will die if not fed, but whatever I touch will soon turn red. What am I?", "answer": "fire"},
+}
 
 FLOOR_STORY = {
     0: "In the kingdom of Eldoria, darkness looms beneath the ancient Tower of Trials. You, a brave adventurer, enter the tower seeking to restore peace and claim glory.",
@@ -63,7 +61,8 @@ FLOOR_STORY = {
     3: "Floor 3: Forgotten Barracks - Trolls and bandits await.",
     4: "Floor 4: Phantom Chambers - Ghostly wraiths and snakes haunt.",
     5: "Floor 5: Arcane Sanctuary - Warlocks and golems guard the halls.",
-    6: "Floor 6: Dragon’s Lair - Face the Doom Bringer, the final boss.",}
+    6: "Floor 6: Dragon's Lair - Face the Doom Bringer, the final boss.",
+}
 
 MAX_FLOOR = 6
 BASE_SKILL_POINTS = 5
@@ -75,24 +74,23 @@ def init_game():
         mana=0,
         strength=0,
         agility=0,
-        intelligence=0,
         max_health=0,
         max_mana=0,
-        floor=1,
+        floor=0, # Start at floor 0 for the initial story
         in_combat=False,
         enemy=None,
         enemy_health=0,
         in_puzzle=False,
         puzzle_solved=False,
-        message_log=[],
+        message_log=[FLOOR_STORY[0]], # Initial story in the log
         game_over=False,
-        skill_points=BASE_SKILL_POINTS,
-        pending_skill_points=True,
+        skill_points=0, # No skill points at the start
+        pending_skill_points=False, # Not pending at the start
         fighting_boss=False,
     )
-    def start_game(chosen_class):
-        
-       stats = CLASSES[chosen_class]
+
+def start_game(chosen_class):
+    stats = CLASSES[chosen_class]
     st.session_state.update(
         player_class=chosen_class,
         health=stats["health"],
@@ -101,22 +99,21 @@ def init_game():
         max_mana=stats["mana"],
         strength=stats["strength"],
         agility=stats["agility"],
-        intelligence=stats["intelligence"],
         floor=1,
         in_combat=False,
         enemy=None,
         enemy_health=0,
         in_puzzle=False,
         puzzle_solved=False,
-        message_log=[FLOOR_STORY[0], f"You chose the {chosen_class}. {stats['description']} Your adventure begins!"],
+        message_log=[FLOOR_STORY[1], f"You chose the {chosen_class}. {stats['description']} Your adventure begins!"],
         game_over=False,
-        skill_points=BASE_SKILL_POINTS,
-        pending_skill_points=True,
+        skill_points=0,
+        pending_skill_points=False,
         fighting_boss=False,
     )
 
-def apply_skill_points(hp_points, mana_points, str_points, agi_points, int_points):
-    total = hp_points + mana_points + str_points + agi_points + int_points
+def apply_skill_points(hp_points, mana_points, str_points, agi_points):
+    total = hp_points + mana_points + str_points + agi_points
     if total > st.session_state.skill_points:
         st.error(f"Only {st.session_state.skill_points} skill points available.")
         return False
@@ -124,7 +121,6 @@ def apply_skill_points(hp_points, mana_points, str_points, agi_points, int_point
     st.session_state.max_mana += mana_points * 10
     st.session_state.strength += str_points
     st.session_state.agility += agi_points
-    st.session_state.intelligence += int_points
     # Heal player to new max values when points are applied
     st.session_state.health = st.session_state.max_health
     st.session_state.mana = st.session_state.max_mana
@@ -135,12 +131,14 @@ def apply_skill_points(hp_points, mana_points, str_points, agi_points, int_point
 
 def encounter_enemy():
     if random.random() < 0.6:
-        enemy = random.choice(ENEMIES.get(st.session_state.floor, ENEMIES[MAX_FLOOR]))
-        st.session_state.enemy = enemy
-        st.session_state.enemy_health = enemy["health"]
-        st.session_state.in_combat = True
-        st.session_state.message_log.append(f"A wild {enemy['name']} appears!")
-        return True
+        enemy_list = ENEMIES.get(st.session_state.floor)
+        if enemy_list:
+            enemy = random.choice(enemy_list)
+            st.session_state.enemy = enemy
+            st.session_state.enemy_health = enemy["health"]
+            st.session_state.in_combat = True
+            st.session_state.message_log.append(f"A wild {enemy['name']} appears!")
+            return True
     return False
 
 def start_puzzle():
@@ -173,12 +171,211 @@ def player_attack():
                 st.session_state.enemy_health = 0
                 st.session_state.skill_points += BASE_SKILL_POINTS
                 st.session_state.pending_skill_points = True
+                next_floor() # Automatically move to the next floor
             else:
                 st.session_state.message_log.append(f"You defeated the {st.session_state.enemy['name']}!")
                 st.session_state.in_combat = False
                 st.session_state.enemy = None
                 st.session_state.enemy_health = 0
+                st.session_state.skill_points += BASE_SKILL_POINTS
+                st.session_state.pending_skill_points = True
             return True
         else:
             enemy_attack()
     return False
+
+def enemy_attack():
+    if st.session_state.in_combat and not st.session_state.game_over and st.session_state.enemy:
+        if st.session_state.fighting_boss:
+            enemy_power = BOSSES[st.session_state.floor]["strength"]
+            enemy_agility = BOSSES[st.session_state.floor]["agility"]
+        else:
+            enemy_power = st.session_state.enemy.get("strength", 5)
+            enemy_agility = st.session_state.enemy.get("agility", 5)
+        # Player evasion chance based on agility comparison
+        evasion_chance = max(0.05, (st.session_state.agility - enemy_agility) / 100)
+        if random.random() < evasion_chance:
+            st.session_state.message_log.append("You evaded the enemy's attack!")
+            return
+        damage = max(0, enemy_power - (st.session_state.agility // 3))
+        st.session_state.health -= damage
+        st.session_state.message_log.append(f"Enemy hits you for {damage} damage.")
+        if st.session_state.health <= 0:
+            st.session_state.health = 0
+            st.session_state.game_over = True
+            st.session_state.message_log.append("You died. Game over.")
+
+def solve_puzzle(answer):
+    if st.session_state.in_puzzle and st.session_state.floor in PUZZLES:
+        correct = PUZZLES[st.session_state.floor]["answer"]
+        if answer.strip().lower() == correct:
+            st.session_state.puzzle_solved = True
+            st.session_state.in_puzzle = False
+            st.session_state.message_log.append("Puzzle solved! You may proceed.")
+            st.session_state.skill_points += BASE_SKILL_POINTS
+            st.session_state.pending_skill_points = True
+        else:
+            st.session_state.message_log.append("Wrong answer, try again.")
+
+def start_boss():
+    if st.session_state.floor in BOSSES:
+        boss = BOSSES[st.session_state.floor]
+        st.session_state.fighting_boss = True
+        st.session_state.in_combat = True
+        st.session_state.enemy = boss
+        st.session_state.enemy_health = boss["health"]
+        st.session_state.message_log.append(f"Boss {boss['name']} appears! {boss.get('description','')}")
+
+def next_floor():
+    if st.session_state.floor < MAX_FLOOR:
+        st.session_state.floor += 1
+        st.session_state.message_log.append(f"You advance to floor {st.session_state.floor}.")
+        st.session_state.in_combat = False
+        st.session_state.enemy = None
+        st.session_state.enemy_health = 0
+        st.session_state.in_puzzle = False
+        st.session_state.puzzle_solved = False
+        st.session_state.fighting_boss = False
+        if st.session_state.floor in FLOOR_STORY:
+            st.session_state.message_log.append(FLOOR_STORY[st.session_state.floor])
+    else:
+        st.session_state.message_log.append("You have reached the top of the tower!")
+        st.session_state.game_over = True # Mark as won
+
+def try_encounter():
+    if st.session_state.floor > MAX_FLOOR:
+        st.session_state.message_log.append("You conquered all floors! You win!")
+        st.session_state.game_over = True
+        return
+    if not st.session_state.in_combat and not st.session_state.in_puzzle:
+        if st.session_state.floor % 3 == 0:  # Every 3 floors is a boss floor
+            start_boss()
+        elif random.random() < 0.5:
+            encounter_enemy()
+        else:
+            start_puzzle()
+
+def cast_spell():
+    if st.session_state.in_combat and not st.session_state.game_over:
+        if st.session_state.mana >= 20:
+            st.session_state.mana -= 20
+            base_damage = st.session_state.strength + 10  # Spells are stronger than normal attacks
+            damage = max(0, base_damage - random.randint(0, 5))
+            st.session_state.enemy_health -= damage
+            st.session_state.message_log.append(f"You cast a spell dealing {damage} damage to the {st.session_state.enemy['name']}!")
+            if st.session_state.enemy_health <= 0:
+                if st.session_state.fighting_boss:
+                    st.session_state.message_log.append(f"You defeated the boss {st.session_state.enemy['name']}!")
+                    st.session_state.fighting_boss = False
+                    st.session_state.in_combat = False
+                    st.session_state.enemy = None
+                    st.session_state.enemy_health = 0
+                    st.session_state.skill_points += BASE_SKILL_POINTS
+                    st.session_state.pending_skill_points = True
+                    next_floor()
+                else:
+                    st.session_state.message_log.append(f"You defeated the {st.session_state.enemy['name']}!")
+                    st.session_state.in_combat = False
+                    st.session_state.enemy = None
+                    st.session_state.enemy_health = 0
+                    st.session_state.skill_points += BASE_SKILL_POINTS
+                    st.session_state.pending_skill_points = True
+            else:
+                enemy_attack()
+        else:
+            st.session_state.message_log.append("Not enough mana to cast a spell!")
+
+def rest():
+    if not st.session_state.in_combat and not st.session_state.in_puzzle:
+        heal_amount = min(30, st.session_state.max_health - st.session_state.health)
+        mana_amount = min(30, st.session_state.max_mana - st.session_state.mana)
+        st.session_state.health += heal_amount
+        st.session_state.mana += mana_amount
+        st.session_state.message_log.append(f"You rest and recover {heal_amount} HP and {mana_amount} mana.")
+        # After resting, trigger an encounter
+        try_encounter()
+
+# Main game UI
+st.set_page_config(page_title="Simple DnD with Stats", layout="centered")
+st.title("🛡 Simple DnD Game - Stats in Combat")
+
+if "player_class" not in st.session_state:
+    init_game()
+
+if not st.session_state.player_class:
+    st.header("Choose Your Starter Class")
+    cols = st.columns(3)
+    for i, (c, info) in enumerate(CLASSES.items()):
+        with cols[i]:
+            st.subheader(c)
+            st.write(info["description"])
+            st.write(f"Health: {info['health']}")
+            st.write(f"Mana: {info['mana']}")
+            st.write(f"Strength: {info['strength']}")
+            st.write(f"Agility: {info['agility']}")
+            if st.button(f"Select {c}"):
+                start_game(c)
+else:
+    st.sidebar.header(f"Status - Floor {st.session_state.floor}")
+    st.sidebar.write(f"Class: {st.session_state.player_class}")
+    st.sidebar.write(f"❤ Health: {st.session_state.health}/{st.session_state.max_health}")
+    st.sidebar.write(f"🔵 Mana: {st.session_state.mana}/{st.session_state.max_mana}")
+    st.sidebar.write(f"💪 Strength: {st.session_state.strength}")
+    st.sidebar.write(f"🤸 Agility: {st.session_state.agility}")
+    st.sidebar.write(f"Skill Points: {st.session_state.skill_points}")
+
+    if st.session_state.game_over:
+        st.error("💀 You died! Game Over." if st.session_state.health <= 0 else "🎉 You conquered all floors! You win!")
+        if st.button("Restart"):
+            init_game()
+    else:
+        # Display message log
+        st.subheader("Game Log")
+        for msg in reversed(st.session_state.message_log[-10:]):  # Show last 10 messages
+            st.write(msg)
+
+        if st.session_state.pending_skill_points and st.session_state.skill_points > 0:
+            st.subheader("Distribute Skill Points")
+            hp_p = st.number_input("Add Health (+10 per point)", 0, st.session_state.skill_points, 0, key="hp_p")
+            mana_p = st.number_input("Add Mana (+10 per point)", 0, st.session_state.skill_points, 0, key="mana_p")
+            str_p = st.number_input("Add Strength", 0, st.session_state.skill_points, 0, key="str_p")
+            agi_p = st.number_input("Add Agility", 0, st.session_state.skill_points, 0, key="agi_p")
+            if st.button("Apply skill points"):
+                if apply_skill_points(hp_p, mana_p, str_p, agi_p):
+                    st.experimental_rerun()
+        else:
+            if st.session_state.in_combat:
+                st.subheader(f"Combat with {st.session_state.enemy['name']}")
+                st.write(f"Enemy Health: {st.session_state.enemy_health}/{st.session_state.enemy['health']}")
+                col1, col2 = st.columns(2)
+                with col1:
+                    if st.button("Attack"):
+                        player_attack()
+                        st.experimental_rerun()
+                with col2:
+                    if st.button("Cast Spell (20 mana)"):
+                        cast_spell()
+                        st.experimental_rerun()
+            elif st.session_state.in_puzzle:
+                st.subheader("Puzzle")
+                puzzle = PUZZLES[st.session_state.floor]
+                st.write(puzzle["question"])
+                answer = st.text_input("Your answer:")
+                if st.button("Submit Answer"):
+                    solve_puzzle(answer)
+                    st.experimental_rerun()
+            else:
+                if st.session_state.floor <= MAX_FLOOR:
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        if st.button("Explore"):
+                            try_encounter()
+                            st.experimental_rerun()
+                    with col2:
+                        if st.button("Rest"):
+                            rest()
+                            st.experimental_rerun()
+                else:
+                    st.success("Congratulations! You've conquered the tower!")
+                    if st.button("Play Again"):
+                        init_game()

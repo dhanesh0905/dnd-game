@@ -1,137 +1,146 @@
+import streamlit as st
 import random
 
-# Starter stats for character classes
-CHARACTER_CLASSES = {
-    "knight": {
-        "health": 120,
-        "mana": 30,
-        "strength": 15,
-        "agility": 10,
-        "intelligence": 5,
-        "description": "Strong melee fighter."
-    },
-    "magierin": {
-        "health": 70,
-        "mana": 120,
-        "strength": 5,
-        "agility": 10,
-        "intelligence": 18,
-        "description": "Powerful spellcaster."
-    },
-    "the shadow": {
-        "health": 90,
-        "mana": 50,
-        "strength": 12,
-        "agility": 18,
-        "intelligence": 8,
-        "description": "Fast and stealthy attacker."
-    }
+CLASSES = {
+    "Knight": {"HP": 30, "Attack": 7, "Defense": 5},
+    "Mage": {"HP": 20, "Attack": 9, "Defense": 3},
+    "Shadow": {"HP": 25, "Attack": 6, "Defense": 4},
 }
-FLOORS = [
-    {"name": "Goblin Lair", "enemy": {"name":"Goblin", "health":100, "strength":12, "description":"A sneaky and quick foe."},
-     "puzzle": {"question": "What number comes next in the sequence? 2, 3, 5, 7, 11, ?", "answer": "13"}},
-    {"name": "Orc Camp", "enemy": {"name":"Orc", "health":140, "strength":18, "description":"A brutish and powerful warrior."},
-     "puzzle": {"question": "I speak without a mouth and hear without ears. What am I?", "answer": "echo"}},
-    {"name": "Skeleton Crypt", "enemy": {"name":"Skeleton", "health":80, "strength":10, "description":"An undead soldier risen from the grave."},
-     "puzzle": {"question": "What has to be broken before you can use it?", "answer": "egg"}},
-    {"name": "Spider Nest", "enemy": {"name":"Giant Spider", "health":110, "strength":14, "description":"A venomous spider lurking in shadows."},
-     "puzzle": {"question": "What can fill a room but takes up no space?", "answer": "light"}},
-    {"name": "Bandit Hideout", "enemy": {"name":"Bandit", "health":130, "strength":16, "description":"A ruthless human thug."},
-     "puzzle": {"question": "What has keys but can't open locks?", "answer": "piano"}},
-    {"name": "Dark Mage Tower", "enemy": {"name":"Dark Mage", "health":90, "strength":20, "description":"A master of dark magic."},
-     "puzzle": {"question": "What runs around a yard without moving?", "answer": "fence"}},
-    {"name": "Wraith's Haunt", "enemy": {"name":"Wraith", "health":150, "strength":15, "description":"A ghostly and ethereal foe."},
-     "puzzle": {"question": "I’m tall when I’m young, and I’m short when I’m old. What am I?", "answer": "candle"}},
-    {"name": "Troll Bridge", "enemy": {"name":"Troll", "health":200, "strength":22, "description":"A huge and terrifying brute."},
-     "puzzle": {"question": "What gets wetter as it dries?", "answer": "towel"}},
-    {"name": "Dragon's Cave", "enemy": {"name":"Young Dragon", "health":250, "strength":30, "description":"A fierce dragon with fiery breath."},
-     "puzzle": {"question": "What belongs to you but is used by others more than you?", "answer": "your name"}},
-    {"name": "Demon Gate", "enemy": {"name":"Demon Lord", "health":300, "strength":35, "description":"The ultimate evil to defeat."},
-     "puzzle": {"question": "The more of this there is, the less you see. What is it?", "answer": "darkness"}},
-]
-class Player:
-    def __init__(self, char_name):
-        stats = CHARACTER_CLASSES[char_name]
-        self.name = char_name
-        self.max_health = stats["health"]
-        self.max_mana = stats["mana"]
-        self.strength = stats["strength"]
-        self.agility = stats["agility"]
-        self.intelligence = stats["intelligence"]
-        self.description = stats["description"]
-        self.current_health = self.max_health
-        self.current_mana = self.max_mana
-        self.skill_points = 0
 
-    def is_alive(self):
-        return self.current_health > 0
+ENEMIES = {
+    1: [{"name": "Goblin", "HP": 10, "Attack": 4}, {"name": "Rat", "HP": 6, "Attack": 3}],
+    2: [{"name": "Orc", "HP": 15, "Attack": 6}, {"name": "Giant Spider", "HP": 12, "Attack": 5}],
+    3: [{"name": "Troll", "HP": 25, "Attack": 8}, {"name": "Bandit Captain", "HP": 20, "Attack": 7}],
+    4: [{"name": "Wraith", "HP": 30, "Attack": 9}, {"name": "Venomous Snake", "HP": 20, "Attack": 8}],
+    5: [{"name": "Warlock", "HP": 35, "Attack": 10}, {"name": "Stone Golem", "HP": 40, "Attack": 9}],
+    6: [{"name": "Dread Knight", "HP": 50, "Attack": 12}, {"name": "Lich", "HP": 60, "Attack": 14}],
+    7: [{"name": "Fire Elemental", "HP": 55, "Attack": 13}, {"name": "Ice Witch", "HP": 45, "Attack": 15}],
+    8: [{"name": "Vampire", "HP": 65, "Attack": 16}, {"name": "Necromancer", "HP": 70, "Attack": 18}],
+    9: [{"name": "Doom Bringer Lieutenant", "HP": 75, "Attack": 19}, {"name": "Chaos Beast", "HP": 80, "Attack": 20}],
+    10: [{"name": "Final Guardian", "HP": 100, "Attack": 22}, {"name": "Dark Overlord Lieutenant", "HP": 90, "Attack": 21}],
+}
 
-    def basic_attack(self):
-        damage = self.strength + random.randint(0, self.agility)
-        return damage
+BOSSES = {
+    1: {"name": "Goblin King", "HP": 40, "Attack": 10, "Defense": 3},
+    2: {"name": "Orc Warlord", "HP": 60, "Attack": 14, "Defense": 5},
+    3: {"name": "Dark Dragon", "HP": 100, "Attack": 20, "Defense": 7},
+    4: {"name": "Shadow Lurker", "HP": 90, "Attack": 18, "Defense": 6},
+    5: {"name": "Ancient Warlock", "HP": 110, "Attack": 22, "Defense": 8},
+    6: {"name": "Doom Bringer", "HP": 150, "Attack": 28, "Defense": 10},
+    7: {"name": "Flame Titan", "HP": 140, "Attack": 25, "Defense": 9},
+    8: {"name": "Frost Sorcerer", "HP": 160, "Attack": 27, "Defense": 11},
+    9: {"name": "Chaos Champion", "HP": 180, "Attack": 30, "Defense": 12},
+    10: {"name": "Dark Overlord", "HP": 220, "Attack": 35, "Defense": 15},
+}
 
-    def use_ability(self):
-        if self.name == "knight":
-            cost = 10
-            if self.current_mana < cost:
-                return (0, "Not enough mana for Power Strike!")
-            self.current_mana -= cost
-            damage = self.strength * 2 + random.randint(5, 10)
-            return (damage, f"Power Strike deals {damage} damage!")
-        elif self.name == "magierin":
-            cost = 25
-            if self.current_mana < cost:
-                return (0, "Not enough mana for Fireball!")
-            self.current_mana -= cost
-            damage = self.intelligence * 3 + random.randint(10, 15)
-            return (damage, f"Fireball deals {damage} magic damage!")
-        elif self.name == "the shadow":
-            cost = 15
-            if self.current_mana < cost:
-                return (0, "Not enough mana for Backstab!")
-            self.current_mana -= cost
-            base_damage = self.strength + self.agility
-            crit = random.random() < 0.5
-            damage = base_damage * (2 if crit else 1) + random.randint(3, 7)
-            if crit:
-                return (damage, f"Backstab Critical! Deals {damage} damage!")
-            else:
-                return (damage, f"Backstab hits for {damage} damage!")
-        else:
-            return (0, "No ability found.")
+PUZZLES = {
+    1: {"question": "I speak without a mouth and hear without ears. I have nobody, but I come alive with the wind. What am I?", "answer": "echo"},
+    2: {"question": "The more of this there is, the less you see. What is it?", "answer": "darkness"},
+    3: {"question": "I have cities, but no houses; forests, but no trees; and water, but no fish. What am I?", "answer": "map"},
+    4: {"question": "What can fill a room but takes up no space?", "answer": "light"},
+    5: {"question": "What has keys but can't open locks?", "answer": "piano"},
+    6: {"question": "I am always hungry and will die if not fed, but whatever I touch will soon turn red. What am I?", "answer": "fire"},
+    7: {"question": "I’m tall when I’m young, and I’m short when I’m old. What am I?", "answer": "candle"},
+    8: {"question": "What can travel around the world while staying in the same spot?", "answer": "stamp"},
+    9: {"question": "What has hands but can’t clap?", "answer": "clock"},
+    10: {"question": "What is so fragile that saying its name breaks it?", "answer": "silence"},
+}
 
-    def add_skill_point(self):
-        self.skill_points += 1
+FLOOR_STORY = {
+    0: "In the kingdom of Eldoria, darkness looms beneath the ancient Tower of Trials. You, a brave adventurer, enter the tower seeking to restore peace and claim glory.",
+    1: "Floor 1: Entrance Hall - Goblins lurk in the dim light.",
+    2: "Floor 2: Creeping Depths - Orcs and spiders stalk you.",
+    3: "Floor 3: Forgotten Barracks - Trolls and bandits await.",
+    4: "Floor 4: Phantom Chambers - Ghostly wraiths and snakes haunt.",
+    5: "Floor 5: Arcane Sanctuary - Warlocks and golems guard the halls.",
+    6: "Floor 6: Dragon’s Lair - Face the Doom Bringer, the final boss.",
+    7: "Floor 7: Flame Sanctum - The fearsome Flame Titan tests your courage.",
+    8: "Floor 8: Frost Keep - The icy grip of the Frost Sorcerer chills your bones.",
+    9: "Floor 9: Chaos Rift - The battleground of the Chaos Champion awaits.",
+    10: "Floor 10: Dark Overlord's Throne - The final confrontation with the Dark Overlord.",
+}
 
-    def spend_skill_point(self, stat):
-        if self.skill_points <= 0:
-            return False
-        if stat == "strength":
-            self.strength += 1
-        elif stat == "agility":
-            self.agility += 1
-        elif stat == "intelligence":
-            self.intelligence += 1
-        elif stat == "health":
-            self.max_health += 10
-            self.current_health += 10
-        elif stat == "mana":
-            self.max_mana += 10
-            self.current_mana += 10
-        else:
-            return False
-        self.skill_points -= 1
+MAX_FLOOR = 10
+BASE_SKILL_POINTS = 5
+
+def init_game():
+    st.session_state.update(
+        player_class=None, base_hp=0, base_attack=0, base_defense=0,
+        hp=0, attack=0, defense=0, floor=1,
+        in_combat=False, enemy=None, enemy_hp=0,
+        in_puzzle=False, puzzle_solved=False,
+        message_log=[], game_over=False,
+        skill_points=BASE_SKILL_POINTS, pending_skill_points=True,
+        fighting_boss=False,
+    )
+
+def start_game(chosen_class):
+    stats = CLASSES[chosen_class]
+    st.session_state.update(
+        player_class=chosen_class, base_hp=stats["HP"], base_attack=stats["Attack"], base_defense=stats["Defense"],
+        hp=stats["HP"], attack=stats["Attack"], defense=stats["Defense"],
+        floor=1, in_combat=False, enemy=None, enemy_hp=0,
+        in_puzzle=False, puzzle_solved=False,
+        message_log=[FLOOR_STORY[0], f"You chose the {chosen_class}. Your adventure begins!"],
+        game_over=False, skill_points=BASE_SKILL_POINTS,
+        pending_skill_points=True, fighting_boss=False,
+    )
+
+def apply_skill_points(hp_points, atk_points, def_points):
+    total = hp_points + atk_points + def_points
+    if total > st.session_state.skill_points:
+        st.error(f"Only {st.session_state.skill_points} skill points available.")
+        return False
+    st.session_state.base_hp += hp_points * 5
+    st.session_state.base_attack += atk_points
+    st.session_state.base_defense += def_points
+    st.session_state.hp = st.session_state.base_hp
+    st.session_state.attack = st.session_state.base_attack
+    st.session_state.defense = st.session_state.base_defense
+    st.session_state.skill_points -= total
+    if st.session_state.skill_points == 0:
+        st.session_state.pending_skill_points = False
+    return True
+
+def encounter_enemy():
+    if random.random() < 0.6:
+        enemy = random.choice(ENEMIES.get(st.session_state.floor, ENEMIES[MAX_FLOOR]))
+        st.session_state.enemy = enemy
+        st.session_state.enemy_hp = enemy["HP"]
+        st.session_state.in_combat = True
+        st.session_state.message_log.append(f"A wild {enemy['name']} appears!")
         return True
-class Enemy:
-    def __init__(self, name, health, strength, description):
-        self.name = name
-        self.health = health
-        self.strength = strength
-        self.description = description
+    return False
 
-    def is_alive(self):
-        return self.health > 0
+def start_puzzle():
+    puzzle = PUZZLES.get(st.session_state.floor)
+    if puzzle:
+        st.session_state.in_puzzle = True
+        st.session_state.puzzle_solved = False
+        st.session_state.message_log.append("You encounter a puzzle!")
+    else:
+        st.session_state.in_puzzle = False
 
-    def attack(self):
-        damage = self.strength + random.randint(0, 5)
-        return damage
+def player_attack():
+    if st.session_state.in_combat and not st.session_state.game_over:
+        damage = max(0, st.session_state.attack - random.randint(0,3))
+        st.session_state.enemy_hp -= damage
+        st.session_state.message_log.append(f"You dealt {damage} damage to the {st.session_state.enemy['name']}.")
+        if st.session_state.enemy_hp <= 0:
+            if st.session_state.fighting_boss:
+                st.session_state.message_log.append(f"You defeated the boss {st.session_state.enemy['name']}!")
+                st.session_state.fighting_boss = False
+                st.session_state.in_combat = False
+                st.session_state.enemy = None
+                st.session_state.enemy_hp = 0
+                st.session_state.skill_points += BASE_SKILL_POINTS
+                st.session_state.pending_skill_points = True
+            else:
+                st.session_state.message_log.append(f"You defeated the {st.session_state.enemy['name']}!")
+                st.session_state.in_combat = False
+                st.session_state.enemy = None
+                st.session_state.enemy_hp = 0
+            return True
+        else:
+            enemy_attack()
+    return False

@@ -91,7 +91,8 @@ def init_game():
         fighting_boss=False,
     )
     def start_game(chosen_class):
-    stats = CLASSES[chosen_class]
+        
+       stats = CLASSES[chosen_class]
     st.session_state.update(
         player_class=chosen_class,
         health=stats["health"],

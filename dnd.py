@@ -317,6 +317,7 @@ if not st.session_state.player_class:
             st.write(f"Agility: {info['agility']}")
             if st.button(f"Select {c}"):
                 start_game(c)
+
 else:
     st.sidebar.header(f"Status - Floor {st.session_state.floor}")
     st.sidebar.write(f"Class: {st.session_state.player_class}")
@@ -347,13 +348,32 @@ else:
             if st.session_state.in_combat:
                 st.subheader(f"Combat with {st.session_state.enemy['name']}")
                 st.write(f"Enemy Health: {st.session_state.enemy_health}/{st.session_state.enemy['health']}")
-                col1, col2 = st.columns(2)
+                
+                # Combat Action Buttons
+                col1, col2, col3 = st.columns(3)
                 with col1:
-                    if st.button("Explore"):
-                        try_encounter()
+                    if st.button("⚔️ Basic Attack"):
+                        player_attack()
                 with col2:
-                    if st.button("Rest"):
-                        rest()
+                    if st.button("🔥 Cast Spell (20 MP)"):
+                        cast_spell()
+                with col3:
+                    if st.button("🛡 Guard"):
+                        st.session_state.message_log.append("You raise your guard!")
+                        st.session_state.player_buffs["blocking"] = True
+
+                # Class-Specific Skills
+                st.markdown("---")
+                st.subheader("Class Skills")
+                class_skills = CLASSES[st.session_state.player_class]["skills"]
+                for skill, details in class_skills.items():
+                    if st.button(f"{skill} ({details['cost']} MP)"):
+                        if st.session_state.mana >= details["cost"]:
+                            st.session_state.mana -= details["cost"]
+                            player_attack(skill)
+                        else:
+                            st.session_state.message_log.append(f"Not enough mana for {skill}!")
+
             elif st.session_state.in_puzzle:
                 st.subheader("Puzzle")
                 puzzle = PUZZLES[st.session_state.floor]

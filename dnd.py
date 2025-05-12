@@ -76,17 +76,18 @@ def init_game():
         agility=0,
         max_health=0,
         max_mana=0,
-        floor=0, # Start at floor 0 for the initial story
+        floor=0,
         in_combat=False,
         enemy=None,
         enemy_health=0,
         in_puzzle=False,
         puzzle_solved=False,
-        message_log=[FLOOR_STORY[0]], # Initial story in the log
+        message_log=[FLOOR_STORY[0]],
         game_over=False,
-        skill_points=0, # No skill points at the start
-        pending_skill_points=False, # Not pending at the start
+        skill_points=0,
+        pending_skill_points=False,
         fighting_boss=False,
+        solved_puzzles=set(),  # Track solved puzzles
     )
 
 def start_game(chosen_class):
@@ -110,6 +111,7 @@ def start_game(chosen_class):
         skill_points=0,
         pending_skill_points=False,
         fighting_boss=False,
+        solved_puzzles=set(),  # Reset on new game
     )
 
 def apply_skill_points(hp_points, mana_points, str_points, agi_points):
@@ -121,7 +123,6 @@ def apply_skill_points(hp_points, mana_points, str_points, agi_points):
     st.session_state.max_mana += mana_points * 10
     st.session_state.strength += str_points
     st.session_state.agility += agi_points
-    # Heal player to new max values when points are applied
     st.session_state.health = st.session_state.max_health
     st.session_state.mana = st.session_state.max_mana
     st.session_state.skill_points -= total
@@ -153,7 +154,6 @@ def start_puzzle():
 def player_attack():
     if st.session_state.in_combat and not st.session_state.game_over:
         base_damage = st.session_state.strength
-        # Critical hit chance based on agility/100
         crit_chance = min(0.3, st.session_state.agility / 100)
         crit = random.random() < crit_chance
         damage = max(0, base_damage + (base_damage // 2 if crit else 0) - random.randint(0, 3))
@@ -171,7 +171,7 @@ def player_attack():
                 st.session_state.enemy_health = 0
                 st.session_state.skill_points += BASE_SKILL_POINTS
                 st.session_state.pending_skill_points = True
-                next_floor() # Automatically move to the next floor
+                next_floor()
             else:
                 st.session_state.message_log.append(f"You defeated the {st.session_state.enemy['name']}!")
                 st.session_state.in_combat = False
@@ -192,7 +192,6 @@ def enemy_attack():
         else:
             enemy_power = st.session_state.enemy.get("strength", 5)
             enemy_agility = st.session_state.enemy.get("agility", 5)
-        # Player evasion chance based on agility comparison
         evasion_chance = max(0.05, (st.session_state.agility - enemy_agility) / 100)
         if random.random() < evasion_chance:
             st.session_state.message_log.append("You evaded the enemy's attack!")
@@ -209,6 +208,7 @@ def solve_puzzle(answer):
     if st.session_state.in_puzzle and st.session_state.floor in PUZZLES:
         correct = PUZZLES[st.session_state.floor]["answer"]
         if answer.strip().lower() == correct:
+            st.session_state.solved_puzzles.add(st.session_state.floor)
             st.session_state.puzzle_solved = True
             st.session_state.in_puzzle = False
             st.session_state.message_log.append("Puzzle solved! You may proceed.")
@@ -240,7 +240,7 @@ def next_floor():
             st.session_state.message_log.append(FLOOR_STORY[st.session_state.floor])
     else:
         st.session_state.message_log.append("You have reached the top of the tower!")
-        st.session_state.game_over = True # Mark as won
+        st.session_state.game_over = True
 
 def try_encounter():
     if st.session_state.floor > MAX_FLOOR:
@@ -248,18 +248,22 @@ def try_encounter():
         st.session_state.game_over = True
         return
     if not st.session_state.in_combat and not st.session_state.in_puzzle:
-        if st.session_state.floor % 3 == 0:  # Every 3 floors is a boss floor
+        if st.session_state.floor % 3 == 0:
             start_boss()
-        elif random.random() < 0.5:
-            encounter_enemy()
         else:
-            start_puzzle()
+            if st.session_state.floor not in st.session_state.solved_puzzles:
+                start_puzzle()
+            else:
+                if random.random() < 0.6:
+                    encounter_enemy()
+                else:
+                    st.session_state.message_log.append("You find nothing but dust...")
 
 def cast_spell():
     if st.session_state.in_combat and not st.session_state.game_over:
         if st.session_state.mana >= 20:
             st.session_state.mana -= 20
-            base_damage = st.session_state.strength + 10  # Spells are stronger than normal attacks
+            base_damage = st.session_state.strength + 10
             damage = max(0, base_damage - random.randint(0, 5))
             st.session_state.enemy_health -= damage
             st.session_state.message_log.append(f"You cast a spell dealing {damage} damage to the {st.session_state.enemy['name']}!")
@@ -292,7 +296,6 @@ def rest():
         st.session_state.health += heal_amount
         st.session_state.mana += mana_amount
         st.session_state.message_log.append(f"You rest and recover {heal_amount} HP and {mana_amount} mana.")
-        # After resting, trigger an encounter
         try_encounter()
 
 st.set_page_config(page_title="Simple DnD with Stats", layout="centered")
@@ -346,11 +349,11 @@ else:
                 st.write(f"Enemy Health: {st.session_state.enemy_health}/{st.session_state.enemy['health']}")
                 col1, col2 = st.columns(2)
                 with col1:
-                    if st.button("Attack"):
-                        player_attack()
+                    if st.button("Explore"):
+                        try_encounter()
                 with col2:
-                    if st.button("Cast Spell (20 mana)"):
-                        cast_spell()
+                    if st.button("Rest"):
+                        rest()
             elif st.session_state.in_puzzle:
                 st.subheader("Puzzle")
                 puzzle = PUZZLES[st.session_state.floor]

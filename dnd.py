@@ -1,32 +1,43 @@
 import streamlit as st
 import random
 
-# Classes with detailed stats and descriptions
 CLASSES = {
     "Knight": {
         "health": 100,
         "mana": 20,
         "strength": 15,
         "agility": 8,
-        "description": "A strong melee fighter with high health and strength."
+        "description": "A strong melee fighter with high health and strength.",
+        "skills": {
+            "Shield Bash": {"cost": 15, "damage_mult": 1.5},
+            "Whirlwind": {"cost": 25, "damage_mult": 2.0}
+        }
     },
     "Mage": {
         "health": 60,
         "mana": 100,
         "strength": 5,
         "agility": 10,
-        "description": "A spellcaster with powerful magic but low health."
+        "description": "A spellcaster with powerful magic but low health.",
+        "skills": {
+            "Firestorm": {"cost": 30, "damage_mult": 2.5},
+            "Ice Prison": {"cost": 25, "damage_mult": 1.8}
+        }
     },
     "Shadow": {
         "health": 80,
         "mana": 40,
         "strength": 10,
         "agility": 18,
-        "description": "A stealthy assassin with high agility and balanced stats."
+        "description": "A stealthy assassin with high agility and balanced stats.",
+        "skills": {
+            "Backstab": {"cost": 20, "damage_mult": 2.2},
+            "Poison Dart": {"cost": 15, "damage_mult": 1.5}
+        }
     },
 }
 
-# Enemies and bosses with simplified stats
+
 ENEMIES = {
     1: [{"name": "Goblin", "health": 40, "strength": 10, "agility": 5}],
     2: [{"name": "Orc", "health": 60, "strength": 14, "agility": 7}],
@@ -34,6 +45,10 @@ ENEMIES = {
     4: [{"name": "Wraith", "health": 90, "strength": 20, "agility": 12}],
     5: [{"name": "Warlock", "health": 100, "strength": 22, "agility": 8}],
     6: [{"name": "Dread Knight", "health": 110, "strength": 25, "agility": 10}],
+    7: [{"name": "Fire Elemental", "health": 130, "strength": 28, "agility": 10}],
+    8: [{"name": "Ice Golem", "health": 150, "strength": 32, "agility": 8}],
+    9: [{"name": "Necromancer", "health": 120, "strength": 35, "agility": 15}],
+    10: [{"name": "Hellhound", "health": 160, "strength": 38, "agility": 18}],
 }
 
 BOSSES = {
@@ -43,6 +58,10 @@ BOSSES = {
     4: {"name": "Shadow Lurker", "health": 160, "strength": 30, "agility": 20, "description": "A deadly phantom of the shadows."},
     5: {"name": "Ancient Warlock", "health": 190, "strength": 32, "agility": 14, "description": "Master of forbidden magic."},
     6: {"name": "Doom Bringer", "health": 220, "strength": 40, "agility": 18, "description": "Harbinger of the world's end."},
+    7: {"name": "Phoenix King", "health": 240, "strength": 45, "agility": 22, "description": "Ruler of the fiery realms."},
+    8: {"name": "Frost Titan", "health": 260, "strength": 50, "agility": 18, "description": "Towering giant of eternal ice."},
+    9: {"name": "Lich King", "health": 280, "strength": 55, "agility": 25, "description": "Undead monarch of the damned."},
+    10: {"name": "Demon Lord", "health": 300, "strength": 60, "agility": 30, "description": "The supreme ruler of the abyss."},
 }
 
 PUZZLES = {
@@ -52,6 +71,10 @@ PUZZLES = {
     4: {"question": "What can fill a room but takes up no space?", "answer": "light"},
     5: {"question": "What has keys but can't open locks?", "answer": "piano"},
     6: {"question": "I am always hungry and will die if not fed, but whatever I touch will soon turn red. What am I?", "answer": "fire"},
+     7: {"question": "I follow you all day and mimic your moves, but I vanish in darkness. What am I?", "answer": "shadow"},
+    8: {"question": "What has a heart that doesn't beat?", "answer": "artichoke"},
+    9: {"question": "What can run but never walks, has a mouth but never talks?", "answer": "river"},
+    10: {"question": "What is always in front of you but can't be seen?", "answer": "future"},
 }
 
 FLOOR_STORY = {
@@ -62,9 +85,13 @@ FLOOR_STORY = {
     4: "Floor 4: Phantom Chambers - Ghostly wraiths and snakes haunt.",
     5: "Floor 5: Arcane Sanctuary - Warlocks and golems guard the halls.",
     6: "Floor 6: Dragon's Lair - Face the Doom Bringer, the final boss.",
+    7: "Floor 7: Molten Core - Lava flows and fire elementals surge.",
+    8: "Floor 8: Frozen Abyss - Treacherous ice and frost titans dominate.",
+    9: "Floor 9: Crypt of Despair - Undead and necromancers lurk.",
+    10: "Floor 10: Throne of Chaos - Confront the Demon Lord, ruler of the abyss.",
 }
 
-MAX_FLOOR = 6
+MAX_FLOOR = 10
 BASE_SKILL_POINTS = 5
 
 def init_game():
@@ -150,6 +177,53 @@ def start_puzzle():
         st.session_state.message_log.append("You encounter a puzzle!")
     else:
         st.session_state.in_puzzle = False
+def player_attack(skill=None):
+    if st.session_state.in_combat and not st.session_state.game_over:
+        if skill:
+            skill_info = CLASSES[st.session_state.player_class]["skills"][skill]
+            base_damage = int(st.session_state.strength * skill_info["damage_mult"])
+            mana_cost = skill_info["cost"]
+            if st.session_state.mana < mana_cost:
+                st.session_state.message_log.append(f"Not enough mana for {skill}!")
+                return
+            st.session_state.mana -= mana_cost
+        else:
+            base_damage = st.session_state.strength
+            mana_cost = 0
+
+        crit_chance = min(0.3, st.session_state.agility / 100)
+        crit = random.random() < crit_chance
+        damage = max(0, base_damage + (base_damage // 2 if crit else 0) - random.randint(0, 3))
+        
+        st.session_state.enemy_health -= damage
+        msg = f"You use {skill} and deal {damage} damage!" if skill else f"You deal {damage} damage"
+        if crit:
+            msg += " (Critical hit!)"
+        st.session_state.message_log.append(msg)
+
+        if st.session_state.enemy_health <= 0:
+            handle_victory()
+        else:
+            enemy_attack()
+def handle_victory():
+    if st.session_state.fighting_boss:
+        st.session_state.message_log.append(f"You defeated the boss {st.session_state.enemy['name']}!")
+        st.session_state.skill_points += BASE_SKILL_POINTS * 2
+    else:
+        st.session_state.message_log.append(f"You defeated the {st.session_state.enemy['name']}!")
+        st.session_state.skill_points += BASE_SKILL_POINTS
+    
+    st.session_state.pending_skill_points = True
+    st.session_state.in_combat = False
+    st.session_state.enemy = None
+    st.session_state.enemy_health = 0
+    st.session_state.fighting_boss = False
+    
+    if st.session_state.floor == MAX_FLOOR:
+        st.session_state.game_over = True
+        st.session_state.message_log.append("You've conquered the Tower of Trials! Legendary!")
+    else:
+        next_floor()
 
 def player_attack():
     if st.session_state.in_combat and not st.session_state.game_over:

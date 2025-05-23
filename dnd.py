@@ -3,6 +3,7 @@ import random
 
 CLASSES = {
     "Knight": {
+        "image_url": "https://i.pinimg.com/474x/6d/7d/b5/6d7db587491ddc0c8fde2b7040606347.jpg",  
         "health": 100,
         "mana": 20,
         "strength": 15,
@@ -14,6 +15,7 @@ CLASSES = {
         }
     },
     "Mage": {
+        "image_url": "https://i.pinimg.com/736x/c1/e5/fd/c1e5fd12cc32f64ba8284b30c6e57de9.jpg",  
         "health": 60,
         "mana": 100,
         "strength": 5,
@@ -25,6 +27,7 @@ CLASSES = {
         }
     },
     "Shadow": {
+        "image_url": "data:image/jpeg;base64,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", 
         "health": 80,
         "mana": 40,
         "strength": 10,
@@ -114,13 +117,14 @@ def init_game():
         skill_points=0,
         pending_skill_points=False,
         fighting_boss=False,
-        solved_puzzles=set(),  # Track solved puzzles
+        solved_puzzles=set(),  
     )
 
 def start_game(chosen_class):
     stats = CLASSES[chosen_class]
-    st.session_state.update(
+    st.session_state.update (
         player_class=chosen_class,
+        player_image=stats["image_url"],  # Add image to session state
         health=stats["health"],
         max_health=stats["health"],
         mana=stats["mana"],
@@ -138,7 +142,7 @@ def start_game(chosen_class):
         skill_points=0,
         pending_skill_points=False,
         fighting_boss=False,
-        solved_puzzles=set(),  # Reset on new game
+        solved_puzzles=set(),  
     )
 
 def apply_skill_points(hp_points, mana_points, str_points, agi_points):
@@ -384,6 +388,7 @@ if not st.session_state.player_class:
     for i, (c, info) in enumerate(CLASSES.items()):
         with cols[i]:
             st.subheader(c)
+            st.image(info["image_url"], width=200)  # Add class image
             st.write(info["description"])
             st.write(f"Health: {info['health']}")
             st.write(f"Mana: {info['mana']}")
@@ -393,6 +398,9 @@ if not st.session_state.player_class:
                 start_game(c)
 
 else:
+    st.sidebar.header(f"Status - Floor {st.session_state.floor}")
+    st.sidebar.image(st.session_state.player_image, width=200)
+    st.sidebar.write(f"Class: {st.session_state.player_class}")
     st.sidebar.header(f"Status - Floor {st.session_state.floor}")
     st.sidebar.write(f"Class: {st.session_state.player_class}")
     st.sidebar.write(f"❤ Health: {st.session_state.health}/{st.session_state.max_health}")
@@ -423,7 +431,6 @@ else:
                 st.subheader(f"Combat with {st.session_state.enemy['name']}")
                 st.write(f"Enemy Health: {st.session_state.enemy_health}/{st.session_state.enemy['health']}")
                 
-                # Combat Action Buttons
                 col1, col2, col3 = st.columns(3)
                 with col1:
                     if st.button("⚔️ Basic Attack"):
@@ -435,8 +442,7 @@ else:
                     if st.button("🛡 Guard"):
                         st.session_state.message_log.append("You raise your guard!")
                         st.session_state.player_buffs["blocking"] = True
-
-                # Class-Specific Skills
+                        
                 st.markdown("---")
                 st.subheader("Class Skills")
                 class_skills = CLASSES[st.session_state.player_class]["skills"]

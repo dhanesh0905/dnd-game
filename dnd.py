@@ -121,8 +121,9 @@ def init_game():
         skill_points=0,
         pending_skill_points=False,
         fighting_boss=False,
-        solved_puzzles=set(),  
-         recent_enemies=deque(maxlen=3),  
+        solved_puzzles=set(),
+        recent_enemies=deque(maxlen=3),
+        enemies_defeated=0,  
     )
 
 def start_game(chosen_class):
@@ -222,21 +223,20 @@ def handle_victory():
     if st.session_state.fighting_boss:
         st.session_state.message_log.append(f"You defeated the boss {st.session_state.enemy['name']}!")
         st.session_state.skill_points += BASE_SKILL_POINTS * 2
+        st.session_state.fighting_boss = False
+        next_floor()  # Proceed to next floor after boss defeat
     else:
         st.session_state.message_log.append(f"You defeated the {st.session_state.enemy['name']}!")
+        st.session_state.enemies_defeated += 1  # Increment normal enemies defeated
         st.session_state.skill_points += BASE_SKILL_POINTS
-    
+
     st.session_state.pending_skill_points = True
     st.session_state.in_combat = False
     st.session_state.enemy = None
     st.session_state.enemy_health = 0
-    st.session_state.fighting_boss = False
-    
-    if st.session_state.floor == MAX_FLOOR:
-        st.session_state.game_over = True
-        st.session_state.message_log.append("You've conquered the Tower of Trials! Legendary!")
-    else:
-        next_floor()
+
+    if st.session_state.enemies_defeated >= 3 and not st.session_state.fighting_boss:
+        start_boss()
 
 def player_attack():
     if st.session_state.in_combat and not st.session_state.game_over:
@@ -316,6 +316,7 @@ def start_boss():
 def next_floor():
     if st.session_state.floor < MAX_FLOOR:
         st.session_state.floor += 1
+        st.session_state.enemies_defeated = 0  
         st.session_state.message_log.append(f"You advance to floor {st.session_state.floor}.")
         st.session_state.in_combat = False
         st.session_state.enemy = None
@@ -330,28 +331,20 @@ def next_floor():
         st.session_state.game_over = True
 
 def try_encounter():
-     if st.session_state.in_combat:
-                st.subheader(f"Combat with {st.session_state.enemy['name']}")
-                
-                if "image url" in st.session_state.enemy:
-                    st.image(st.session_state.enemy["image url"], width=200)
-                
-                st.write(f"Enemy Health: {st.session_state.enemy_health}/{st.session_state.enemy['health']}")
-     if st.session_state.floor > MAX_FLOOR:
-        st.session_state.message_log.append("You conquered all floors! You win!")
-        st.session_state.game_over = True
+    if st.session_state.in_combat:
         return
-     if not st.session_state.in_combat and not st.session_state.in_puzzle:
-        if st.session_state.floor % 3 == 0:
-            start_boss()
+
+    
+    if st.session_state.enemies_defeated >= 3:
+        start_boss()
+    else:
+        if st.session_state.floor not in st.session_state.solved_puzzles:
+            start_puzzle()
         else:
-            if st.session_state.floor not in st.session_state.solved_puzzles:
-                start_puzzle()
+            if random.random() < 0.6:
+                encounter_enemy()
             else:
-                if random.random() < 0.6:
-                    encounter_enemy()
-                else:
-                    st.session_state.message_log.append("You find nothing but dust...")
+                st.session_state.message_log.append("You find nothing but dust...")
 
 def cast_spell():
     if st.session_state.in_combat and not st.session_state.game_over:

@@ -1,3 +1,4 @@
+from collections import deque
 import streamlit as st
 import random
 
@@ -121,6 +122,7 @@ def init_game():
         pending_skill_points=False,
         fighting_boss=False,
         solved_puzzles=set(),  
+         recent_enemies=deque(maxlen=3),  
     )
 
 def start_game(chosen_class):
@@ -168,7 +170,11 @@ def encounter_enemy():
     if random.random() < 0.6:
         enemy_list = ENEMIES.get(st.session_state.floor)
         if enemy_list:
-            enemy = random.choice(enemy_list)
+            available_enemies = [e for e in enemy_list if e['name'] not in st.session_state.recent_enemies]
+            if not available_enemies:
+                available_enemies = enemy_list
+            enemy = random.choice(available_enemies)
+            st.session_state.recent_enemies.append(enemy['name'])
             st.session_state.enemy = enemy
             st.session_state.enemy_health = enemy["health"]
             st.session_state.in_combat = True

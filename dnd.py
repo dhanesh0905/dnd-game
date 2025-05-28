@@ -122,15 +122,16 @@ def init_game():
         pending_skill_points=False,
         fighting_boss=False,
         solved_puzzles=set(),
-        recent_enemies=deque(maxlen=3),
-        enemies_defeated=0,  
+        enemies_defeated=0,
+        defeated_enemies=set(),
+        encountered_by_floor={},
     )
 
 def start_game(chosen_class):
     stats = CLASSES[chosen_class]
-    st.session_state.update (
+    st.session_state.update(
         player_class=chosen_class,
-        player_image=stats["image_url"],  
+        player_image=stats["image_url"],
         health=stats["health"],
         max_health=stats["health"],
         mana=stats["mana"],
@@ -148,7 +149,10 @@ def start_game(chosen_class):
         skill_points=0,
         pending_skill_points=False,
         fighting_boss=False,
-        solved_puzzles=set(),  
+        solved_puzzles=set(),
+        enemies_defeated=0,
+        defeated_enemies=set(),
+        encountered_by_floor={},
     )
 
 def apply_skill_points(hp_points, mana_points, str_points, agi_points):
@@ -168,141 +172,136 @@ def apply_skill_points(hp_points, mana_points, str_points, agi_points):
     return True
 
 def encounter_enemy():
-    if random.random() < 0.6:
-        enemy_list = ENEMIES.get(st.session_state.floor)
-        if enemy_list:
-            available_enemies = [e for e in enemy_list if e['name'] not in st.session_state.recent_enemies]
-            if not available_enemies:
-                available_enemies = enemy_list
-            enemy = random.choice(available_enemies)
-            st.session_state.recent_enemies.append(enemy['name'])
-            st.session_state.enemy = enemy
-            st.session_state.enemy_health = enemy["health"]
-            st.session_state.in_combat = True
-            st.session_state.message_log.append(f"A wild {enemy['name']} appears!")
-            return True
+    if random.random() < 0.7:  
+        enemy_list = ENEMIES.get(st.session_state.floor, [])
+        
+        if not enemy_list:
+            return False
+        st.session_state.encountered_by_floor.setdefault(st.session_state.floor, set())
+
+        available_enemies = [
+            e for e in enemy_list 
+            if e['name'] not in st.session_state.defeated_enemies 
+            and e['name'] not in st.session_state.encountered_by_floor[st.session_state.floor]
+        ]
+
+        if not available_enemies:
+            if st.session_state.floor < MAX_FLOOR:
+                st.session_state.message_log.append("No more new enemies on this floor. Moving to next floor.")
+                next_floor()
+                return False
+            else:
+                st.session_state.message_log.append("All enemies defeated! You win!")
+                st.session_state.game_over = True
+                return False
+
+        enemy = random.choice(available_enemies)
+        st.session_state.enemy = enemy
+        st.session_state.enemy_health = enemy["health"]
+        st.session_state.in_combat = True
+        st.session_state.message_log.append(f"A wild {enemy['name']} appears!")
+        st.session_state.encountered_by_floor[st.session_state.floor].add(enemy['name'])
+        return True
     return False
 
 def start_puzzle():
     puzzle = PUZZLES.get(st.session_state.floor)
-    if puzzle:
+    if puzzle and st.session_state.floor not in st.session_state.solved_puzzles:
         st.session_state.in_puzzle = True
         st.session_state.puzzle_solved = False
         st.session_state.message_log.append("You encounter a puzzle!")
     else:
         st.session_state.in_puzzle = False
-def player_attack(skill=None):  
-    if st.session_state.in_combat and not st.session_state.game_over:
-        if skill:
-            skill_info = CLASSES[st.session_state.player_class]["skills"][skill]
-            base_damage = int(st.session_state.strength * skill_info["damage_mult"])
-            mana_cost = skill_info["cost"]
-            if st.session_state.mana < mana_cost:
-                st.session_state.message_log.append(f"Not enough mana for {skill}!")
-                return
-            st.session_state.mana -= mana_cost
-        else:
-            base_damage = st.session_state.strength
-            mana_cost = 0
 
-        crit_chance = min(0.3, st.session_state.agility / 100)
-        crit = random.random() < crit_chance
-        damage = max(0, base_damage + (base_damage // 2 if crit else 0) - random.randint(0, 3))
-        
-        st.session_state.enemy_health -= damage
-        msg = f"You use {skill} and deal {damage} damage!" if skill else f"You deal {damage} damage"
-        if crit:
-            msg += " (Critical hit!)"
-        st.session_state.message_log.append(msg)
+def player_attack(skill=None):
+    if not st.session_state.in_combat or st.session_state.game_over:
+        return
 
-        if st.session_state.enemy_health <= 0:
-            handle_victory()
-        else:
-            enemy_attack()
+    if skill:
+        skill_info = CLASSES[st.session_state.player_class]["skills"][skill]
+        base_damage = int(st.session_state.strength * skill_info["damage_mult"])
+        mana_cost = skill_info["cost"]
+        if st.session_state.mana < mana_cost:
+            st.session_state.message_log.append(f"Not enough mana for {skill}!")
+            return
+        st.session_state.mana -= mana_cost
+    else:
+        base_damage = st.session_state.strength
+        mana_cost = 0
+
+    crit_chance = min(0.3, st.session_state.agility / 100)
+    crit = random.random() < crit_chance
+    damage = max(1, base_damage + (base_damage // 2 if crit else 0) - random.randint(0, 3))
+    
+    st.session_state.enemy_health -= damage
+    msg = f"You use {skill} and deal {damage} damage!" if skill else f"You attack dealing {damage} damage"
+    if crit:
+        msg += " (Critical hit!)"
+    st.session_state.message_log.append(msg)
+
+    if st.session_state.enemy_health <= 0:
+        handle_victory()
+    else:
+        enemy_attack()
+
 def handle_victory():
+    enemy_name = st.session_state.enemy['name']
+    st.session_state.defeated_enemies.add(enemy_name)
+    
     if st.session_state.fighting_boss:
-        st.session_state.message_log.append(f"You defeated the boss {st.session_state.enemy['name']}!")
+        st.session_state.message_log.append(f"You defeated the boss {enemy_name}!")
         st.session_state.skill_points += BASE_SKILL_POINTS * 2
         st.session_state.fighting_boss = False
-        next_floor()  # Proceed to next floor after boss defeat
+        next_floor()
     else:
-        st.session_state.message_log.append(f"You defeated the {st.session_state.enemy['name']}!")
-        st.session_state.enemies_defeated += 1  # Increment normal enemies defeated
+        st.session_state.message_log.append(f"You defeated the {enemy_name}!")
+        st.session_state.enemies_defeated += 1
         st.session_state.skill_points += BASE_SKILL_POINTS
+        if st.session_state.enemies_defeated >= 3:
+            start_boss()
 
     st.session_state.pending_skill_points = True
     st.session_state.in_combat = False
     st.session_state.enemy = None
     st.session_state.enemy_health = 0
 
-    if st.session_state.enemies_defeated >= 3 and not st.session_state.fighting_boss:
-        start_boss()
-
-def player_attack():
-    if st.session_state.in_combat and not st.session_state.game_over:
-        base_damage = st.session_state.strength
-        crit_chance = min(0.3, st.session_state.agility / 100)
-        crit = random.random() < crit_chance
-        damage = max(0, base_damage + (base_damage // 2 if crit else 0) - random.randint(0, 3))
-        st.session_state.enemy_health -= damage
-        if crit:
-            st.session_state.message_log.append(f"Critical hit! You deal {damage} damage to the {st.session_state.enemy['name']}.")
-        else:
-            st.session_state.message_log.append(f"You deal {damage} damage to the {st.session_state.enemy['name']}.")
-        if st.session_state.enemy_health <= 0:
-            if st.session_state.fighting_boss:
-                st.session_state.message_log.append(f"You defeated the boss {st.session_state.enemy['name']}!")
-                st.session_state.fighting_boss = False
-                st.session_state.in_combat = False
-                st.session_state.enemy = None
-                st.session_state.enemy_health = 0
-                st.session_state.skill_points += BASE_SKILL_POINTS
-                st.session_state.pending_skill_points = True
-                next_floor()
-            else:
-                st.session_state.message_log.append(f"You defeated the {st.session_state.enemy['name']}!")
-                st.session_state.in_combat = False
-                st.session_state.enemy = None
-                st.session_state.enemy_health = 0
-                st.session_state.skill_points += BASE_SKILL_POINTS
-                st.session_state.pending_skill_points = True
-            return True
-        else:
-            enemy_attack()
-    return False
-
 def enemy_attack():
-    if st.session_state.in_combat and not st.session_state.game_over and st.session_state.enemy:
-        if st.session_state.fighting_boss:
-            enemy_power = BOSSES[st.session_state.floor]["strength"]
-            enemy_agility = BOSSES[st.session_state.floor]["agility"]
-        else:
-            enemy_power = st.session_state.enemy.get("strength", 5)
-            enemy_agility = st.session_state.enemy.get("agility", 5)
-        evasion_chance = max(0.05, (st.session_state.agility - enemy_agility) / 100)
-        if random.random() < evasion_chance:
-            st.session_state.message_log.append("You evaded the enemy's attack!")
-            return
-        damage = max(0, enemy_power - (st.session_state.agility // 3))
-        st.session_state.health -= damage
-        st.session_state.message_log.append(f"Enemy hits you for {damage} damage.")
-        if st.session_state.health <= 0:
-            st.session_state.health = 0
-            st.session_state.game_over = True
-            st.session_state.message_log.append("You died. Game over.")
+    if not st.session_state.in_combat or st.session_state.game_over or not st.session_state.enemy:
+        return
+
+    enemy = BOSSES[st.session_state.floor] if st.session_state.fighting_boss else st.session_state.enemy
+    enemy_power = enemy["strength"]
+    enemy_agility = enemy.get("agility", 5)
+    
+    evasion_chance = max(0.05, (st.session_state.agility - enemy_agility) / 100)
+    if random.random() < evasion_chance:
+        st.session_state.message_log.append("You evaded the enemy's attack!")
+        return
+    
+    damage = max(1, enemy_power - (st.session_state.agility // 3))
+    st.session_state.health -= damage
+    st.session_state.message_log.append(f"Enemy hits you for {damage} damage.")
+    
+    if st.session_state.health <= 0:
+        st.session_state.health = 0
+        st.session_state.game_over = True
+        st.session_state.message_log.append("You died. Game over.")
 
 def solve_puzzle(answer):
-    if st.session_state.in_puzzle and st.session_state.floor in PUZZLES:
-        correct = PUZZLES[st.session_state.floor]["answer"]
-        if answer.strip().lower() == correct:
-            st.session_state.solved_puzzles.add(st.session_state.floor)
-            st.session_state.puzzle_solved = True
-            st.session_state.in_puzzle = False
-            st.session_state.message_log.append("Puzzle solved! You may proceed.")
-            st.session_state.skill_points += BASE_SKILL_POINTS
-            st.session_state.pending_skill_points = True
-        else:
-            st.session_state.message_log.append("Wrong answer, try again.")
+    if not st.session_state.in_puzzle or st.session_state.floor not in PUZZLES:
+        return
+
+    correct = PUZZLES[st.session_state.floor]["answer"]
+    if answer.strip().lower() == correct:
+        st.session_state.solved_puzzles.add(st.session_state.floor)
+        st.session_state.puzzle_solved = True
+        st.session_state.in_puzzle = False
+        st.session_state.message_log.append("Puzzle solved! You may proceed.")
+        st.session_state.skill_points += BASE_SKILL_POINTS
+        st.session_state.pending_skill_points = True
+        try_encounter()
+    else:
+        st.session_state.message_log.append("Wrong answer, try again.")
 
 def start_boss():
     if st.session_state.floor in BOSSES:
@@ -312,85 +311,68 @@ def start_boss():
         st.session_state.enemy = boss
         st.session_state.enemy_health = boss["health"]
         st.session_state.message_log.append(f"Boss {boss['name']} appears! {boss.get('description','')}")
+        if "image url" in boss:
+            st.session_state.message_log.append(f"![Boss]({boss['image url']})")
 
 def next_floor():
     if st.session_state.floor < MAX_FLOOR:
         st.session_state.floor += 1
-        st.session_state.enemies_defeated = 0  
+        st.session_state.enemies_defeated = 0
         st.session_state.message_log.append(f"You advance to floor {st.session_state.floor}.")
+        st.session_state.message_log.append(FLOOR_STORY[st.session_state.floor])
         st.session_state.in_combat = False
         st.session_state.enemy = None
         st.session_state.enemy_health = 0
         st.session_state.in_puzzle = False
         st.session_state.puzzle_solved = False
         st.session_state.fighting_boss = False
-        if st.session_state.floor in FLOOR_STORY:
-            st.session_state.message_log.append(FLOOR_STORY[st.session_state.floor])
     else:
         st.session_state.message_log.append("You have reached the top of the tower!")
         st.session_state.game_over = True
 
 def try_encounter():
-    if st.session_state.in_combat:
+    if st.session_state.in_combat or st.session_state.game_over or st.session_state.in_puzzle:
         return
 
-    
-    if st.session_state.enemies_defeated >= 3:
-        start_boss()
+    if (st.session_state.floor not in st.session_state.solved_puzzles and 
+        random.random() < 0.3 and 
+        st.session_state.floor in PUZZLES):
+        start_puzzle()
     else:
-        if st.session_state.floor not in st.session_state.solved_puzzles:
-            start_puzzle()
-        else:
-            if random.random() < 0.6:
-                encounter_enemy()
-            else:
-                st.session_state.message_log.append("You find nothing but dust...")
+        encounter_enemy()
 
 def cast_spell():
-    if st.session_state.in_combat and not st.session_state.game_over:
-        if st.session_state.mana >= 20:
-            st.session_state.mana -= 20
-            base_damage = st.session_state.strength + 10
-            damage = max(0, base_damage - random.randint(0, 5))
-            st.session_state.enemy_health -= damage
-            st.session_state.message_log.append(f"You cast a spell dealing {damage} damage to the {st.session_state.enemy['name']}!")
-            if st.session_state.enemy_health <= 0:
-                if st.session_state.fighting_boss:
-                    st.session_state.message_log.append(f"You defeated the boss {st.session_state.enemy['name']}!")
-                    st.session_state.fighting_boss = False
-                    st.session_state.in_combat = False
-                    st.session_state.enemy = None
-                    st.session_state.enemy_health = 0
-                    st.session_state.skill_points += BASE_SKILL_POINTS
-                    st.session_state.pending_skill_points = True
-                    next_floor()
-                else:
-                    st.session_state.message_log.append(f"You defeated the {st.session_state.enemy['name']}!")
-                    st.session_state.in_combat = False
-                    st.session_state.enemy = None
-                    st.session_state.enemy_health = 0
-                    st.session_state.skill_points += BASE_SKILL_POINTS
-                    st.session_state.pending_skill_points = True
-            else:
-                enemy_attack()
+    if not st.session_state.in_combat or st.session_state.game_over:
+        return
+
+    if st.session_state.mana >= 20:
+        st.session_state.mana -= 20
+        base_damage = st.session_state.strength + 10
+        damage = max(1, base_damage - random.randint(0, 5))
+        st.session_state.enemy_health -= damage
+        st.session_state.message_log.append(f"You cast a spell dealing {damage} damage!")
+        
+        if st.session_state.enemy_health <= 0:
+            handle_victory()
         else:
-            st.session_state.message_log.append("Not enough mana to cast a spell!")
+            enemy_attack()
+    else:
+        st.session_state.message_log.append("Not enough mana to cast a spell!")
 
 def rest():
-    if not st.session_state.in_combat and not st.session_state.in_puzzle:
-        heal_amount = min(30, st.session_state.max_health - st.session_state.health)
-        mana_amount = min(30, st.session_state.max_mana - st.session_state.mana)
-        st.session_state.health += heal_amount
-        st.session_state.mana += mana_amount
-        st.session_state.message_log.append(f"You rest and recover {heal_amount} HP and {mana_amount} mana.")
-        try_encounter()
+    if st.session_state.in_combat or st.session_state.game_over or st.session_state.in_puzzle:
+        return
 
-
-if "player_class" not in st.session_state:
-    init_game()
+    heal_amount = min(30, st.session_state.max_health - st.session_state.health)
+    mana_amount = min(30, st.session_state.max_mana - st.session_state.mana)
+    st.session_state.health += heal_amount
+    st.session_state.mana += mana_amount
+    st.session_state.message_log.append(f"You rest and recover {heal_amount} HP and {mana_amount} mana.")
+    try_encounter()
 
 if "player_class" not in st.session_state:
     init_game()
+
 
 if not st.session_state.player_class:
     st.header("Choose Your Starter Class")
@@ -398,7 +380,7 @@ if not st.session_state.player_class:
     for i, (c, info) in enumerate(CLASSES.items()):
         with cols[i]:
             st.subheader(c)
-            st.image(info["image_url"], width=200)  
+            st.image(info["image_url"], width=200)
             st.write(info["description"])
             st.write(f"Health: {info['health']}")
             st.write(f"Mana: {info['mana']}")
@@ -406,77 +388,82 @@ if not st.session_state.player_class:
             st.write(f"Agility: {info['agility']}")
             if st.button(f"Select {c}"):
                 start_game(c)
-
 else:
+    
     st.sidebar.header(f"Status - Floor {st.session_state.floor}")
     st.sidebar.image(st.session_state.player_image, width=200)
     st.sidebar.write(f"Class: {st.session_state.player_class}")
-    st.sidebar.header(f"Status - Floor {st.session_state.floor}")
-    st.sidebar.write(f"Class: {st.session_state.player_class}")
-    st.sidebar.write(f"❤ Health: {st.session_state.health}/{st.session_state.max_health}")
-    st.sidebar.write(f"🔵 Mana: {st.session_state.mana}/{st.session_state.max_mana}")
+    st.sidebar.progress(st.session_state.health / st.session_state.max_health, 
+                       text=f"❤ Health: {st.session_state.health}/{st.session_state.max_health}")
+    st.sidebar.progress(st.session_state.mana / st.session_state.max_mana, 
+                       text=f"🔵 Mana: {st.session_state.mana}/{st.session_state.max_mana}")
     st.sidebar.write(f"💪 Strength: {st.session_state.strength}")
     st.sidebar.write(f"🤸 Agility: {st.session_state.agility}")
-    st.sidebar.write(f"Skill Points: {st.session_state.skill_points}")
+    st.sidebar.write(f"⭐ Skill Points: {st.session_state.skill_points}")
 
     if st.session_state.game_over:
         st.error("💀 You died! Game Over." if st.session_state.health <= 0 else "🎉 You conquered all floors! You win!")
         if st.button("Restart"):
             init_game()
     else:
+        
         st.subheader("Game Log")
-        for msg in reversed(st.session_state.message_log[-10:]):
-            st.write(msg)
+        log_container = st.container(height=300)
+        with log_container:
+            for msg in reversed(st.session_state.message_log[-10:]):
+                
+                if msg.startswith("![Boss]("):
+                    st.image(msg.split("(")[1].split(")")[0], width=200)
+                else:
+                    st.write(msg)
 
+        
         if st.session_state.pending_skill_points and st.session_state.skill_points > 0:
-            st.subheader("Distribute Skill Points")
-            hp_p = st.number_input("Add Health (+10 per point)", 0, st.session_state.skill_points, 0, key="hp_p")
-            mana_p = st.number_input("Add Mana (+10 per point)", 0, st.session_state.skill_points, 0, key="mana_p")
-            str_p = st.number_input("Add Strength", 0, st.session_state.skill_points, 0, key="str_p")
-            agi_p = st.number_input("Add Agility", 0, st.session_state.skill_points, 0, key="agi_p")
-            if st.button("Apply skill points"):
-                apply_skill_points(hp_p, mana_p, str_p, agi_p)
+            with st.expander("Distribute Skill Points", expanded=True):
+                hp_p = st.number_input("Add Health (+10 per point)", 0, st.session_state.skill_points, 0, key="hp_p")
+                mana_p = st.number_input("Add Mana (+10 per point)", 0, st.session_state.skill_points, 0, key="mana_p")
+                str_p = st.number_input("Add Strength", 0, st.session_state.skill_points, 0, key="str_p")
+                agi_p = st.number_input("Add Agility", 0, st.session_state.skill_points, 0, key="agi_p")
+                if st.button("Apply skill points"):
+                    apply_skill_points(hp_p, mana_p, str_p, agi_p)
         else:
+            
             if st.session_state.in_combat:
                 st.subheader(f"Combat with {st.session_state.enemy['name']}")
                 
                 if "image url" in st.session_state.enemy:
                     st.image(st.session_state.enemy["image url"], width=200)
-                st.write(f"Enemy Health: {st.session_state.enemy_health}/{st.session_state.enemy['health']}")
                 
-                col1, col2, col3 = st.columns(3)
+                st.progress(st.session_state.enemy_health / st.session_state.enemy['health'], 
+                          text=f"Enemy Health: {st.session_state.enemy_health}/{st.session_state.enemy['health']}")
+                
+                col1, col2 = st.columns(2)
                 with col1:
                     if st.button("⚔️ Basic Attack"):
                         player_attack()
-                with col2:
                     if st.button("🔥 Cast Spell (20 MP)"):
                         cast_spell()
-                with col3:
+                with col2:
                     if st.button("🛡 Guard"):
                         st.session_state.message_log.append("You raise your guard!")
-                        
+                        enemy_attack()
+                
                 st.markdown("---")
                 st.subheader("Class Skills")
                 class_skills = CLASSES[st.session_state.player_class]["skills"]
                 for skill, details in class_skills.items():
                     if st.button(f"{skill} ({details['cost']} MP)"):
-                        if st.session_state.mana >= details["cost"]:
-                            st.session_state.mana -= details["cost"]
-                            player_attack(skill)
-                        else:
-                            st.session_state.message_log.append(f"Not enough mana for {skill}!")
+                        player_attack(skill)
 
             elif st.session_state.in_puzzle:
                 st.subheader("Puzzle Encounter")
-                
-                st.image("https://media.tenor.com/Y2jZZeojXg8AAAAM/puzzle-angry.gif", 
-                        width=200)
+                st.image("https://media.tenor.com/Y2jZZeojXg8AAAAM/puzzle-angry.gif", width=200)
                 puzzle = PUZZLES[st.session_state.floor]
                 st.write(puzzle["question"])
                 answer = st.text_input("Your answer:")
                 if st.button("Submit Answer"):
                     solve_puzzle(answer)
-                    
+                
             else:
                 if st.session_state.floor <= MAX_FLOOR:
                     col1, col2 = st.columns(2)

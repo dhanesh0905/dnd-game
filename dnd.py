@@ -148,31 +148,11 @@ def player_attack(skill=None):
     st.session_state.message_log.append(msg)
 
     if st.session_state.enemy_health <= 0:
-        handle_victory()
+        general.handle_victory(st.session_state, encounter, BOSSES,  BASE_SKILL_POINTS)
     else:
         enemy_attack()
 
-def handle_victory():
-    enemy_name = st.session_state.enemy['name']
-    st.session_state.defeated_enemies.add(enemy_name)
-    
-    if st.session_state.fighting_boss:
-        st.session_state.message_log.append(f"You defeated the boss {enemy_name}!")
-        st.session_state.skill_points += BASE_SKILL_POINTS * 2
-        st.session_state.fighting_boss = False
-        next_floor()
-    else:
-        st.session_state.message_log.append(f"You defeated the {enemy_name}!")
-        st.session_state.enemies_defeated += 1
-        st.session_state.skill_points += BASE_SKILL_POINTS
-        if st.session_state.enemies_defeated >= 3:
-            encounter.start_boss(st.session_state, BOSSES )
 
-    st.session_state.pending_skill_points = True
-    st.session_state.in_combat = False
-    st.session_state.enemy = None
-    st.session_state.enemy_health = 0
-    
 def start_game(chosen_class):
     stats = CLASSES[chosen_class]
     st.session_state.update(
@@ -279,7 +259,7 @@ def cast_spell():
         st.session_state.message_log.append(f"You cast a spell dealing {damage} damage!")
         
         if st.session_state.enemy_health <= 0:
-            handle_victory()
+            general.handle_victory(st.session_state, encounter, BOSSES,  BASE_SKILL_POINTS)
         else:
             enemy_attack()
     else:

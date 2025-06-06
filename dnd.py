@@ -1,9 +1,11 @@
 from collections import deque
 import streamlit as st
 import random
+import general
+import encounter 
 
-st.set_page_config(page_title="Simple DnD with Stats", layout="centered")
-st.title("🛡 Simple DnD Game - Stats in Combat")
+st.set_page_config(page_title="DnD with Stats", layout="centered")
+st.title("🛡DnD Game - Stats in Combat")
 
 CLASSES = {
     "Knight": {
@@ -98,62 +100,10 @@ FLOOR_STORY = {
     10: "Floor 10: Throne of Chaos - Confront the Demon Lord, ruler of the abyss.",
 }
 
+
+
 MAX_FLOOR = 10
 BASE_SKILL_POINTS = 5
-
-def init_game():
-    st.session_state.update(
-        player_class=None,
-        health=0,
-        mana=0,
-        strength=0,
-        agility=0,
-        max_health=0,
-        max_mana=0,
-        floor=0,
-        in_combat=False,
-        enemy=None,
-        enemy_health=0,
-        in_puzzle=False,
-        puzzle_solved=False,
-        message_log=[FLOOR_STORY[0]],
-        game_over=False,
-        skill_points=0,
-        pending_skill_points=False,
-        fighting_boss=False,
-        solved_puzzles=set(),
-        enemies_defeated=0,
-        defeated_enemies=set(),
-        encountered_by_floor={},
-    )
-
-def start_game(chosen_class):
-    stats = CLASSES[chosen_class]
-    st.session_state.update(
-        player_class=chosen_class,
-        player_image=stats["image_url"],
-        health=stats["health"],
-        max_health=stats["health"],
-        mana=stats["mana"],
-        max_mana=stats["mana"],
-        strength=stats["strength"],
-        agility=stats["agility"],
-        floor=1,
-        in_combat=False,
-        enemy=None,
-        enemy_health=0,
-        in_puzzle=False,
-        puzzle_solved=False,
-        message_log=[FLOOR_STORY[1], f"You chose the {chosen_class}. {stats['description']} Your adventure begins!"],
-        game_over=False,
-        skill_points=0,
-        pending_skill_points=False,
-        fighting_boss=False,
-        solved_puzzles=set(),
-        enemies_defeated=0,
-        defeated_enemies=set(),
-        encountered_by_floor={},
-    )
 
 def apply_skill_points(hp_points, mana_points, str_points, agi_points):
     total = hp_points + mana_points + str_points + agi_points
@@ -170,48 +120,6 @@ def apply_skill_points(hp_points, mana_points, str_points, agi_points):
     if st.session_state.skill_points == 0:
         st.session_state.pending_skill_points = False
     return True
-
-def encounter_enemy():
-    if random.random() < 0.7:  
-        enemy_list = ENEMIES.get(st.session_state.floor, [])
-        
-        if not enemy_list:
-            return False
-        st.session_state.encountered_by_floor.setdefault(st.session_state.floor, set())
-
-        available_enemies = [
-            e for e in enemy_list 
-            if e['name'] not in st.session_state.defeated_enemies 
-            and e['name'] not in st.session_state.encountered_by_floor[st.session_state.floor]
-        ]
-
-        if not available_enemies:
-            if st.session_state.floor < MAX_FLOOR:
-                st.session_state.message_log.append("No more new enemies on this floor. Moving to next floor.")
-                next_floor()
-                return False
-            else:
-                st.session_state.message_log.append("All enemies defeated! You win!")
-                st.session_state.game_over = True
-                return False
-
-        enemy = random.choice(available_enemies)
-        st.session_state.enemy = enemy
-        st.session_state.enemy_health = enemy["health"]
-        st.session_state.in_combat = True
-        st.session_state.message_log.append(f"A wild {enemy['name']} appears!")
-        st.session_state.encountered_by_floor[st.session_state.floor].add(enemy['name'])
-        return True
-    return False
-
-def start_puzzle():
-    puzzle = PUZZLES.get(st.session_state.floor)
-    if puzzle and st.session_state.floor not in st.session_state.solved_puzzles:
-        st.session_state.in_puzzle = True
-        st.session_state.puzzle_solved = False
-        st.session_state.message_log.append("You encounter a puzzle!")
-    else:
-        st.session_state.in_puzzle = False
 
 def player_attack(skill=None):
     if not st.session_state.in_combat or st.session_state.game_over:
@@ -258,13 +166,41 @@ def handle_victory():
         st.session_state.enemies_defeated += 1
         st.session_state.skill_points += BASE_SKILL_POINTS
         if st.session_state.enemies_defeated >= 3:
-            start_boss()
+            encounter.start_boss(st.session_state, BOSSES )
 
     st.session_state.pending_skill_points = True
     st.session_state.in_combat = False
     st.session_state.enemy = None
     st.session_state.enemy_health = 0
-
+    
+def start_game(chosen_class):
+    stats = CLASSES[chosen_class]
+    st.session_state.update(
+        player_class=chosen_class,
+        player_image=stats["image_url"],
+        health=stats["health"],
+        max_health=stats["health"],
+        mana=stats["mana"],
+        max_mana=stats["mana"],
+        strength=stats["strength"],
+        agility=stats["agility"],
+        floor=1,
+        in_combat=False,
+        enemy=None,
+        enemy_health=0,
+        in_puzzle=False,
+        puzzle_solved=False,
+        message_log=[FLOOR_STORY[1], f"You chose the {chosen_class}. {stats['description']} Your adventure begins!"],
+        game_over=False,
+        skill_points=0,
+        pending_skill_points=False,
+        fighting_boss=False,
+        solved_puzzles=set(),
+        enemies_defeated=0,
+        defeated_enemies=set(),
+        encountered_by_floor={},
+    )
+    
 def enemy_attack():
     if not st.session_state.in_combat or st.session_state.game_over or not st.session_state.enemy:
         return
@@ -303,16 +239,6 @@ def solve_puzzle(answer):
     else:
         st.session_state.message_log.append("Wrong answer, try again.")
 
-def start_boss():
-    if st.session_state.floor in BOSSES:
-        boss = BOSSES[st.session_state.floor]
-        st.session_state.fighting_boss = True
-        st.session_state.in_combat = True
-        st.session_state.enemy = boss
-        st.session_state.enemy_health = boss["health"]
-        st.session_state.message_log.append(f"Boss {boss['name']} appears! {boss.get('description','')}")
-        if "image url" in boss:
-            st.session_state.message_log.append(f"![Boss]({boss['image url']})")
 
 def next_floor():
     if st.session_state.floor < MAX_FLOOR:
@@ -337,9 +263,9 @@ def try_encounter():
     if (st.session_state.floor not in st.session_state.solved_puzzles and 
         random.random() < 0.3 and 
         st.session_state.floor in PUZZLES):
-        start_puzzle()
+        encounter.start_puzzle(st.session_state, PUZZLES)
     else:
-        encounter_enemy()
+        encounter.encounter_enemy(st.session_state ,next_floor, MAX_FLOOR, ENEMIES , random )
 
 def cast_spell():
     if not st.session_state.in_combat or st.session_state.game_over:
@@ -371,7 +297,7 @@ def rest():
     try_encounter()
 
 if "player_class" not in st.session_state:
-    init_game()
+    general.init_game(st.session_state, FLOOR_STORY[0])
 
 
 if not st.session_state.player_class:
@@ -387,6 +313,7 @@ if not st.session_state.player_class:
             st.write(f"Strength: {info['strength']}")
             st.write(f"Agility: {info['agility']}")
             if st.button(f"Select {c}"):
+                chosen_class= st.session_state.player_class
                 start_game(c)
 else:
     
@@ -404,7 +331,7 @@ else:
     if st.session_state.game_over:
         st.error("💀 You died! Game Over." if st.session_state.health <= 0 else "🎉 You conquered all floors! You win!")
         if st.button("Restart"):
-            init_game()
+                general.init_game(st.session_state, FLOOR_STORY[0]) 
     else:
         
         st.subheader("Game Log")
@@ -476,4 +403,4 @@ else:
                 else:
                     st.success("Congratulations! You've conquered the tower!")
                     if st.button("Play Again"):
-                        init_game()
+                        general.init_game(st.session_state, FLOOR_STORY[0])

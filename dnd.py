@@ -1,12 +1,26 @@
-from collections import deque
+"""
+A Streamlit-based dnd game where players choose a character class, battle enemies, 
+solve puzzles, and progress through floors of a tower. Includes character progression 
+through skill points and combat mechanics.
+
+Imports:
+    json: For loading game data
+    streamlit (st): For creating the web UI
+    random: For game randomization
+    general: Custom game utility functions
+    encounter: Custom encounter handling functions
+"""
+
 import json
 import streamlit as st
 import random
 import general
-import encounter 
+import encounter
 
-with open('data.json', 'r') as f:
+# Load game data from JSON file
+with open('dnd_game_data.json', 'r') as f:
     game_data = json.load(f)
+
 
 CLASSES = game_data['CLASSES']
 ENEMIES = {int(k): v for k, v in game_data['ENEMIES'].items()}
@@ -17,7 +31,25 @@ FLOOR_STORY = {int(k): v for k, v in game_data['FLOOR_STORY'].items()}
 MAX_FLOOR = 10
 BASE_SKILL_POINTS = 5
 
+
 def apply_skill_points(hp_points, mana_points, str_points, agi_points):
+    """
+    Distribute skill points to character attributes
+
+    Args:
+        hp_points (int): Points to allocate to health
+        mana_points (int): Points to allocate to mana
+        str_points (int): Points to allocate to strength
+        agi_points (int): Points to allocate to agility
+
+    Returns:
+        bool: True if points were successfully applied, False otherwise
+
+    Side Effects:
+        - Updates character attributes in session state
+        - Reduces available skill points
+        - Displays error message if invalid distribution
+    """
     total = hp_points + mana_points + str_points + agi_points
     if total > st.session_state.skill_points:
         st.error(f"Only {st.session_state.skill_points} skill points available.")
@@ -33,7 +65,21 @@ def apply_skill_points(hp_points, mana_points, str_points, agi_points):
         st.session_state.pending_skill_points = False
     return True
 
+
 def player_attack(skill=None):
+    """
+    Execute player's attack 
+
+    Args:
+        skill (str, optional): Specific skill to use. Defaults to basic attack.
+
+    Side Effects:
+        - Calculates damage based on stats and skill
+        - Updates enemy health
+        - Triggers enemy counterattack or victory
+        - Updates combat log
+        - Manages mana consumption
+    """
     if not st.session_state.in_combat or st.session_state.game_over:
         return
 
@@ -54,7 +100,7 @@ def player_attack(skill=None):
     damage = max(1, base_damage + (base_damage // 2 if crit else 0) - random.randint(0, 3))
     
     st.session_state.enemy_health -= damage
-    msg = f"You use {skill} and deal {damage} damage!" if skill else f"You attack dealing {damage} damage"
+    msg = f"You use {skill} and deal {damage} damage!" if skill else f"You delt {damage} damage"
     if crit:
         msg += " (Critical hit!)"
     st.session_state.message_log.append(msg)
@@ -66,6 +112,17 @@ def player_attack(skill=None):
 
 
 def start_game(chosen_class):
+    """
+    Initialize game state for new game
+
+    Args:
+        chosen_class (str): Player's selected character class
+
+    Side Effects:
+        - Resets session state with initial values
+        - Sets character stats based on class
+        - Initializes game progression tracking
+    """
     stats = CLASSES[chosen_class]
     st.session_state.update(
         player_class=chosen_class,
@@ -82,7 +139,8 @@ def start_game(chosen_class):
         enemy_health=0,
         in_puzzle=False,
         puzzle_solved=False,
-        message_log=[FLOOR_STORY[1], f"You chose the {chosen_class}. {stats['description']} Your adventure begins!"],
+        message_log=[FLOOR_STORY[1],
+                     f"You chose{chosen_class}.{stats['description']} enjoy!"],
         game_over=False,
         skill_points=0,
         pending_skill_points=False,
@@ -92,30 +150,51 @@ def start_game(chosen_class):
         defeated_enemies=set(),
         encountered_by_floor={},
     )
-    
+
+
 def enemy_attack():
+    """
+    Execute enemy attack in combat
+
+    Side Effects:
+        - Calculates damage based on enemy stats
+        - Applies damage to player
+        - Checks for player death
+        - Updates combat log
+        - Handles evasion mechanics
+    """
     if not st.session_state.in_combat or st.session_state.game_over or not st.session_state.enemy:
         return
 
     enemy = BOSSES[st.session_state.floor] if st.session_state.fighting_boss else st.session_state.enemy
     enemy_power = enemy["strength"]
-    enemy_agility = enemy.get("agility", 5)
-    
-    evasion_chance = max(0.05, (st.session_state.agility - enemy_agility) / 100)
+    enemy_agility = enemy.get("agility", 5) 
+    evasion_chance = max(0.05, (st.session_state.agility - enemy_agility) /100)
     if random.random() < evasion_chance:
         st.session_state.message_log.append("You evaded the enemy's attack!")
         return
-    
     damage = max(1, enemy_power - (st.session_state.agility // 3))
     st.session_state.health -= damage
     st.session_state.message_log.append(f"Enemy hits you for {damage} damage.")
-    
     if st.session_state.health <= 0:
         st.session_state.health = 0
         st.session_state.game_over = True
         st.session_state.message_log.append("You died. Game over.")
 
+
 def solve_puzzle(answer):
+    """
+    Validate puzzle solution and handle results
+
+    Args:
+        answer (str): Player's solution to the puzzle
+
+    Side Effects:
+        - Checks answer against correct solution
+        - Awards skill points for correct answers
+        - Triggers encounters after puzzle
+        - Updates puzzle tracking state
+    """
     if not st.session_state.in_puzzle or st.session_state.floor not in PUZZLES:
         return
 
@@ -133,6 +212,15 @@ def solve_puzzle(answer):
 
 
 def next_floor():
+    """
+    Advance player to next floor of the tower
+
+    Side Effects:
+        - Increments floor counter
+        - Resets floor-specific states
+        - Displays story for new floor
+        - Handles game completion
+    """
     if st.session_state.floor < MAX_FLOOR:
         st.session_state.floor += 1
         st.session_state.enemies_defeated = 0
@@ -148,7 +236,16 @@ def next_floor():
         st.session_state.message_log.append("You have reached the top of the tower!")
         st.session_state.game_over = True
 
+
 def try_encounter():
+    """
+    Attempt to trigger random encounter
+
+    Side Effects:
+        - Starts puzzle or combat encounter
+        - Handles encounter probability
+        - Skips encounters when inappropriate
+    """
     if st.session_state.in_combat or st.session_state.game_over or st.session_state.in_puzzle:
         return
 
@@ -157,9 +254,19 @@ def try_encounter():
         st.session_state.floor in PUZZLES):
         encounter.start_puzzle(st.session_state, PUZZLES)
     else:
-        encounter.encounter_enemy(st.session_state ,next_floor, MAX_FLOOR, ENEMIES , random )
+        encounter.encounter_enemy(st.session_state, next_floor, MAX_FLOOR, ENEMIES, random)
+
 
 def cast_spell():
+    """
+    Cast spells in combat
+
+    Side Effects:
+        - Deals spell damage to enemy
+        - Consumes mana
+        - Triggers enemy counterattack
+        - Updates combat log
+    """
     if not st.session_state.in_combat or st.session_state.game_over:
         return
 
@@ -169,7 +276,6 @@ def cast_spell():
         damage = max(1, base_damage - random.randint(0, 5))
         st.session_state.enemy_health -= damage
         st.session_state.message_log.append(f"You cast a spell dealing {damage} damage!")
-        
         if st.session_state.enemy_health <= 0:
             general.handle_victory(st.session_state, encounter, BOSSES,  BASE_SKILL_POINTS)
         else:
@@ -177,7 +283,16 @@ def cast_spell():
     else:
         st.session_state.message_log.append("Not enough mana to cast a spell!")
 
+
 def rest():
+    """
+    Rest to recover health and mana
+
+    Side Effects:
+        - Restores HP and mana
+        - Triggers random encounter
+        - Updates game log
+    """
     if st.session_state.in_combat or st.session_state.game_over or st.session_state.in_puzzle:
         return
 
@@ -188,10 +303,13 @@ def rest():
     st.session_state.message_log.append(f"You rest and recover {heal_amount} HP and {mana_amount} mana.")
     try_encounter()
 
+
+# Initialize game state
 if "player_class" not in st.session_state:
     general.init_game(st.session_state, FLOOR_STORY[0])
 
 
+# Class selection screen
 if not st.session_state.player_class:
     st.header("Choose Your Starter Class")
     cols = st.columns(3)
@@ -205,10 +323,10 @@ if not st.session_state.player_class:
             st.write(f"Strength: {info['strength']}")
             st.write(f"Agility: {info['agility']}")
             if st.button(f"Select {c}"):
-                chosen_class= st.session_state.player_class
+                chosen_class = st.session_state.player_class
                 start_game(c)
 else:
-    
+    # Main game interface
     st.sidebar.header(f"Status - Floor {st.session_state.floor}")
     st.sidebar.image(st.session_state.player_image, width=200)
     st.sidebar.write(f"Class: {st.session_state.player_class}")
@@ -220,23 +338,23 @@ else:
     st.sidebar.write(f"🤸 Agility: {st.session_state.agility}")
     st.sidebar.write(f"⭐ Skill Points: {st.session_state.skill_points}")
 
+    # Game over screen
     if st.session_state.game_over:
         st.error("💀 You died! Game Over." if st.session_state.health <= 0 else "🎉 You conquered all floors! You win!")
         if st.button("Restart"):
                 general.init_game(st.session_state, FLOOR_STORY[0]) 
     else:
-        
+        # Game log display
         st.subheader("Game Log")
         log_container = st.container(height=300)
         with log_container:
             for msg in reversed(st.session_state.message_log[-10:]):
-                
                 if msg.startswith("![Boss]("):
                     st.image(msg.split("(")[1].split(")")[0], width=200)
                 else:
                     st.write(msg)
 
-        
+        # Skill point distribution
         if st.session_state.pending_skill_points and st.session_state.skill_points > 0:
             with st.expander("Distribute Skill Points", expanded=True):
                 hp_p = st.number_input("Add Health (+10 per point)", 0, st.session_state.skill_points, 0, key="hp_p")
@@ -246,16 +364,16 @@ else:
                 if st.button("Apply skill points"):
                     apply_skill_points(hp_p, mana_p, str_p, agi_p)
         else:
-            
+            # Combat interface
             if st.session_state.in_combat:
                 st.subheader(f"Combat with {st.session_state.enemy['name']}")
-                
+
                 if "image url" in st.session_state.enemy:
                     st.image(st.session_state.enemy["image url"], width=200)
-                
+
                 st.progress(st.session_state.enemy_health / st.session_state.enemy['health'], 
                           text=f"Enemy Health: {st.session_state.enemy_health}/{st.session_state.enemy['health']}")
-                
+
                 col1, col2 = st.columns(2)
                 with col1:
                     if st.button("⚔️ Basic Attack"):
@@ -266,7 +384,7 @@ else:
                     if st.button("🛡 Guard"):
                         st.session_state.message_log.append("You raise your guard!")
                         enemy_attack()
-                
+
                 st.markdown("---")
                 st.subheader("Class Skills")
                 class_skills = CLASSES[st.session_state.player_class]["skills"]
@@ -274,6 +392,7 @@ else:
                     if st.button(f"{skill} ({details['cost']} MP)"):
                         player_attack(skill)
 
+            # Puzzle interface
             elif st.session_state.in_puzzle:
                 st.subheader("Puzzle Encounter")
                 st.image("https://media.tenor.com/Y2jZZeojXg8AAAAM/puzzle-angry.gif", width=200)
@@ -282,7 +401,8 @@ else:
                 answer = st.text_input("Your answer:")
                 if st.button("Submit Answer"):
                     solve_puzzle(answer)
-                
+
+            # Exploration interface
             else:
                 if st.session_state.floor <= MAX_FLOOR:
                     col1, col2 = st.columns(2)
@@ -296,3 +416,4 @@ else:
                     st.success("Congratulations! You've conquered the tower!")
                     if st.button("Play Again"):
                         general.init_game(st.session_state, FLOOR_STORY[0])
+                        #finished the game yay!!!

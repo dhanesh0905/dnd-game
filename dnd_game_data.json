@@ -1,0 +1,106 @@
+ {
+  "GAME_CONFIG": {
+    "MAX_FLOOR": 10,
+    "BASE_SKILL_POINTS": 5,
+    "HISTORY_SETTINGS": {
+      "MAX_HISTORY_ENTRIES": 10,
+      "DEFAULT_MESSAGE": "Your adventure begins!",
+      "VICTORY_MESSAGES": {
+        "regular": "You defeated the {enemy}!",
+        "boss": "You conquered {boss} and gained {points} skill points!"
+      },
+      "DEFEAT_MESSAGES": {
+        "regular": "You were defeated by {enemy}...",
+        "boss": "The mighty {boss} was too strong for you..."
+      }
+    }
+  },
+  
+  "CLASSES": {
+    "Knight": {
+      "image_url": "https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExZXpuMmcwOHBpaDNhaGd3MnZvNW0ya3k0dncxbmNtMmU2YTNld2FvdyZlcD12MV9naWZzX3NlYXJjaCZjdD1n/bHSkKRvkRvy5chUBBp/200.webp",
+      "health": 100,
+      "mana": 20,
+      "strength": 15,
+      "agility": 8,
+      "description": "A strong melee fighter with high health and strength.",
+      "skills": {
+        "Shield Bash": {"cost": 15, "damage_mult": 1.5},
+        "Whirlwind": {"cost": 25, "damage_mult": 2.0}
+      }
+    },
+    "Mage": {
+      "image_url": "https://media0.giphy.com/media/4N7vyQva5gsOKR3UKx/giphy.gif?cid=6c09b95218j83nhhxmj8gew7z29sydt5rauew5rrlp44tp9z&ep=v1_internal_gif_by_id&rid=giphy.gif&ct=g",
+      "health": 60,
+      "mana": 100,
+      "strength": 5,
+      "agility": 10,
+      "description": "A spellcaster with powerful magic but low health.",
+      "skills": {
+        "Firestorm": {"cost": 30, "damage_mult": 2.5},
+        "Ice Prison": {"cost": 25, "damage_mult": 1.8}
+      }
+    },
+    "Shadow": {
+      "image_url": "https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExdmJqamM3bjI3Y2MyZTE0dnBtM2I4aGg3eDR2dmVuM2Q4OGhicTZnNiZlcD12MV9naWZzX3NlYXJjaCZjdD1n/tx8UtrSC02lXO/200.webp",
+      "health": 80,
+      "mana": 40,
+      "strength": 10,
+      "agility": 18,
+      "description": "A stealthy assassin with high agility and balanced stats.",
+      "skills": {
+        "Backstab": {"cost": 20, "damage_mult": 2.2},
+        "Poison Dart": {"cost": 15, "damage_mult": 1.5}
+      }
+    }
+  },
+  "ENEMIES": {
+    "1": [{"name": "Goblin", "health": 40, "strength": 10, "agility": 5, "image url": "https://media.tenor.com/ctiUtWQcDwEAAAAM/goblin-slayer-im-here.gif"}],
+    "2": [{"name": "Orc", "health": 60, "strength": 14, "agility": 7, "image url": "https://media.tenor.com/MyP7Y1C7pxoAAAAM/orc-dance-orc.gif"}],
+    "3": [{"name": "Troll", "health": 80, "strength": 18, "agility": 6, "image url": "https://media.giphy.com/media/t37AoeUoDpVeg/giphy.gif"}],
+    "4": [{"name": "Wraith", "health": 90, "strength": 20, "agility": 12, "image url": "https://i.redd.it/xqohgafrw3cc1.gif"}],
+    "5": [{"name": "Warlock", "health": 100, "strength": 22, "agility": 8, "image url": "https://media0.giphy.com/media/xUOwFToDIeaXgTblII/200w.gif?cid=6c09b952rj71te75dg0htluvvkxmdmqpev7uixglu2xb2oa1&ep=v1_gifs_search&rid=200w.gif&ct=g"}],
+    "6": [{"name": "Dread Knight", "health": 110, "strength": 25, "agility": 10, "image url": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wCEAAk2becSrXDh61QuwGMt2HiX4sZL0txzvbyLdZt5e2u3iDM2cCEohBAmSl//2Q=="}],
+    "7": [{"name": "Fire Elemental", "health": 130, "strength": 28, "agility": 10, "image url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT3ajkIS1qUIp696u6DpartAo4MKAz8QlnTfQ&s"}],
+    "8": [{"name": "Ice Golem", "health": 150, "strength": 32, "agility": 8, "image url": "https://i.pinimg.com/originals/c3/69/ce/c369ce2d03e8034929ad42c2fe76b7d0.gif"}],
+    "9": [{"name": "Necromancer", "health": 120, "strength": 35, "agility": 15, "image url": "https://media.tenor.com/FO5gvaU-oLsAAAAM/kastor-necromancer-diablo4-necromancer-diablo.gif"}],
+    "10": [{"name": "Hellhound", "health": 160, "strength": 38, "agility": 18, "image url": "https://i.pinimg.com/originals/dd/36/6e/dd366ea2a91e5725faa553f3dfb77ed7.gif"}]
+  },
+  "BOSSES": {
+    "1": {"name": "Goblin King", "health": 100, "strength": 20, "agility": 10, "description": "The brutal Goblin King.", "image url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcReDtzIdHNyQJ-4ILxM-oO7ZStRdl41P1rIwi8cbi_XGt3cvb62ArwQk_L2AB9TowH_ctc&usqp=CAU"},
+    "2": {"name": "Orc Warlord", "health": 240, "strength": 28, "agility": 12, "description": "The fearsome Orc commander.", "image url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ3K3POAdR-7gt8TNwNjQjvMU2bVEEPD4vnfw&s"},
+    "3": {"name": "Dark Dragon", "health": 280, "strength": 35, "agility": 15, "description": "A mighty dragon shrouded in darkness.", "image url": "https://i.pinimg.com/originals/bc/4c/d9/bc4cd952773dcacca22ef7ada5c7163d.gif"},
+    "4": {"name": "Shadow Lurker", "health": 260, "strength": 30, "agility": 20, "description": "A deadly phantom of the shadows.", "image url": "https://i.pinimg.com/originals/74/a5/3e/74a53ef35a0f47ded85bed8eba20c9d0.gif"},
+    "5": {"name": "Ancient Warlock", "health": 290, "strength": 42, "agility": 24, "description": "Master of forbidden magic.", "image url": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wCEAAkGBxMTEhUSExMWFhUXGRgaGBcYGBoaHxoYGhkXFx8YFxcaHSggHFWzcMxk7BNiYQsmXvM//2Q=="},
+    "6": {"name": "Doom Bringer", "health": 220, "strength": 40, "agility": 18, "description": "Harbinger of the world's end.", "image url": "https://i.pinimg.com/originals/c9/ea/b6/c9eab670fda694b8673101fbe6227866.gif"},
+    "7": {"name": "Phoenix King", "health": 240, "strength": 45, "agility": 22, "description": "Ruler of the fiery realms.", "image url": "https://i.pinimg.com/originals/8b/4f/1f/8b4f1f8f63271e454bcf8f1d59d8fa0e.gif"},
+    "8": {"name": "Frost Titan", "health": 260, "strength": 50, "agility": 18, "description": "Towering giant of eternal ice.", "image url": "https://static.wikia.nocookie.net/powerlisting/images/7/71/HyorinmaruToshiro.gif/revision/latest/thumbnail/width/360/height/360?cb=20181116124049"},
+    "9": {"name": "Lich King", "health": 280, "strength": 55, "agility": 25, "description": "Undead monarch of the damned.", "image url": "https://media.tenor.com/xyCBgyc2dqEAAAAM/wow.gif"},
+    "10": {"name": "Demon Lord", "health": 50000, "strength": 70, "agility": 60, "description": "The supreme ruler of the abyss.", "image url": "https://i.pinimg.com/originals/3a/db/43/3adb4385b0ad8e89bd73c287433d3359.gif"}
+  },
+  "PUZZLES": {
+    "1": {"question": "I speak without a mouth and hear without ears. What am I?", "answer": "echo"},
+    "2": {"question": "The more of this there is, the less you see. What is it?", "answer": "darkness"},
+    "3": {"question": "I have cities, but no houses; forests, but no trees; and water, but no fish. What am I?", "answer": "map"},
+    "4": {"question": "What can fill a room but takes up no space?", "answer": "light"},
+    "5": {"question": "What has keys but can't open locks?", "answer": "piano"},
+    "6": {"question": "I am always hungry and will die if not fed, but whatever I touch will soon turn red. What am I?", "answer": "fire"},
+    "7": {"question": "I follow you all day and mimic your moves, but I vanish in darkness. What am I?", "answer": "shadow"},
+    "8": {"question": "What has a heart that doesn't beat?", "answer": "artichoke"},
+    "9": {"question": "What can run but never walks, has a mouth but never talks?", "answer": "river"},
+    "10": {"question": "What is always in front of you but can't be seen?", "answer": "future"}
+  },
+  "FLOOR_STORY": {
+    "0": "In the kingdom of Eldoria, darkness looms beneath the ancient Tower of Trials. You, a brave adventurer, enter the tower seeking to restore peace and claim glory.",
+    "1": "Floor 1: Entrance Hall - Goblins lurk in the dim light.",
+    "2": "Floor 2: Creeping Depths - Orcs and spiders stalk you.",
+    "3": "Floor 3: Forgotten Barracks - Trolls and bandits await.",
+    "4": "Floor 4: Phantom Chambers - Ghostly wraiths and snakes haunt.",
+    "5": "Floor 5: Arcane Sanctuary - Warlocks and golems guard the halls.",
+    "6": "Floor 6: Dragon's Lair - Face the Doom Bringer, the final boss.",
+    "7": "Floor 7: Molten Core - Lava flows and fire elementals surge.",
+    "8": "Floor 8: Frozen Abyss - Treacherous ice and frost titans dominate.",
+    "9": "Floor 9: Crypt of Despair - Undead and necromancers lurk.",
+    "10": "Floor 10: Throne of Chaos - Confront the Demon Lord, ruler of the abyss."
+  }
+}

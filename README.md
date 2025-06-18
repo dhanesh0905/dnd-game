@@ -23,7 +23,7 @@ This is a simple Dungeons and Dragons style game implemented using Streamlit. Pl
     pip install streamlit
     ```
 
-2.  **Save the Code:** Save the provided Python code as a `.py` file (e.g., `dnd_game.py`).
+2.  **Save the Code:** Save all the files on a same folder for you to run  .
 
 3.  **Run the Game:** Open your terminal or command prompt, navigate to the directory where you saved the file, and run:
     ```bash

@@ -49,6 +49,7 @@ def apply_skill_points(hp_points, mana_points, str_points, agi_points):
         - Updates character attributes in session state
         - Reduces available skill points
         - Displays error message if invalid distribution
+        - Saves game state to JSON after successful application
     """
     total = hp_points + mana_points + str_points + agi_points
     if total > st.session_state.skill_points:
@@ -63,6 +64,9 @@ def apply_skill_points(hp_points, mana_points, str_points, agi_points):
     st.session_state.skill_points -= total
     if st.session_state.skill_points == 0:
         st.session_state.pending_skill_points = False
+    
+    # Save game after applying points
+    save_game_state()
     return True
 
 
@@ -122,6 +126,7 @@ def start_game(chosen_class):
         - Resets session state with initial values
         - Sets character stats based on class
         - Initializes game progression tracking
+        - Creates initial JSON save file
     """
     stats = CLASSES[chosen_class]
     st.session_state.update(
@@ -140,7 +145,7 @@ def start_game(chosen_class):
         in_puzzle=False,
         puzzle_solved=False,
         message_log=[FLOOR_STORY[1],
-                     f"You chose{chosen_class}.{stats['description']} enjoy!"],
+                     f"You chose {chosen_class}. {stats['description']} Enjoy!"],
         game_over=False,
         skill_points=0,
         pending_skill_points=False,
@@ -150,6 +155,9 @@ def start_game(chosen_class):
         defeated_enemies=set(),
         encountered_by_floor={},
     )
+    # Create initial save file
+    save_game_state()
+    
     
 def save_game_state():
     """
@@ -370,6 +378,7 @@ def rest():
         - Restores HP and mana
         - Triggers random encounter
         - Updates game log
+        - Saves game state to JSON after resting
     """
     if st.session_state.in_combat or st.session_state.game_over or st.session_state.in_puzzle:
         return
@@ -379,6 +388,9 @@ def rest():
     st.session_state.health += heal_amount
     st.session_state.mana += mana_amount
     st.session_state.message_log.append(f"You rest and recover {heal_amount} HP and {mana_amount} mana.")
+    
+    # Save game after resting
+    save_game_state()
     try_encounter()
 
 
@@ -469,7 +481,7 @@ else:
                 for skill, details in class_skills.items():
                     if st.button(f"{skill} ({details['cost']} MP)"):
                         player_attack(skill)
-
+            
             # Puzzle interface
             elif st.session_state.in_puzzle:
                 st.subheader("Puzzle Encounter")

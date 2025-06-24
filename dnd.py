@@ -193,7 +193,41 @@ def save_game_state():
         st.session_state.message_log.append("Game progress saved to JSON successfully!")
     except Exception as e:
         st.session_state.message_log.append(f"Error saving game: {str(e)}")
-
+ 
+ 
+def save_combat_log():
+    """
+    Save combat log to the JSON file
+    
+    Side Effects:
+        - Updates dnd_gama_data.json with combat history
+        - Preserves all game data while adding combat log
+    """
+    try:
+        # First load existing data to preserve all game state
+        try:
+            with open('dnd_gama_data.json', 'r') as f:
+                save_data = json.load(f)
+        except FileNotFoundError:
+            save_data = {}
+        
+        # Filter combat-related messages
+        combat_messages = []
+        for msg in st.session_state.message_log:
+            if "damage" in msg or "hit" in msg or "cast" in msg or "evade" in msg or "attack" in msg:
+                combat_messages.append(msg)
+        
+        # Add combat log to save data
+        save_data["combat_log"] = combat_messages
+        save_data["combat_log_saved_at"] = str(datetime.datetime.now())
+        
+        with open('dnd_gama_data.json', 'w') as f:
+            json.dump(save_data, f, indent=4)
+            
+        st.session_state.message_log.append("Combat log saved to JSON!")
+    except Exception as e:
+        st.session_state.message_log.append(f"Error saving combat log: {str(e)}")
+        
 
 def enemy_attack():
     """

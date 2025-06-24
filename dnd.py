@@ -9,14 +9,14 @@ Imports:
     random: For game randomization
     general: Custom game utility functions
     encounter: Custom encounter handling functions
+    datatime: for saving game state with timestamps
 """
-
 import json
 import streamlit as st
 import random
 import general
 import encounter
-
+import datetime  # Added for timestamp in save files
 # Load game data from JSON file
 with open('dnd_game_data.json', 'r') as f:
     game_data = json.load(f)
@@ -150,6 +150,49 @@ def start_game(chosen_class):
         defeated_enemies=set(),
         encountered_by_floor={},
     )
+    
+def save_game_state():
+    """
+    Save current game state to a JSON file
+    
+    Side Effects:
+        - Creates/overwrites dnd_gama_data.json with current state
+        - Saves character stats, inventory, and progress in JSON format
+    """
+    try:
+        save_data = {
+            "player_class": st.session_state.player_class,
+            "player_image": st.session_state.player_image,
+            "health": st.session_state.health,
+            "max_health": st.session_state.max_health,
+            "mana": st.session_state.mana,
+            "max_mana": st.session_state.max_mana,
+            "strength": st.session_state.strength,
+            "agility": st.session_state.agility,
+            "floor": st.session_state.floor,
+            "in_combat": st.session_state.in_combat,
+            "enemy": st.session_state.enemy,
+            "enemy_health": st.session_state.enemy_health,
+            "in_puzzle": st.session_state.in_puzzle,
+            "puzzle_solved": st.session_state.puzzle_solved,
+            "message_log": st.session_state.message_log,
+            "game_over": st.session_state.game_over,
+            "skill_points": st.session_state.skill_points,
+            "pending_skill_points": st.session_state.pending_skill_points,
+            "fighting_boss": st.session_state.fighting_boss,
+            "solved_puzzles": list(st.session_state.solved_puzzles),  # Convert set to list
+            "enemies_defeated": st.session_state.enemies_defeated,
+            "defeated_enemies": list(st.session_state.defeated_enemies),  # Convert set to list
+            "encountered_by_floor": st.session_state.encountered_by_floor,
+            "last_save": str(datetime.datetime.now())
+        }
+        
+        with open('dnd_gama_data.json', 'w') as f:
+            json.dump(save_data, f, indent=4)
+            
+        st.session_state.message_log.append("Game progress saved to JSON successfully!")
+    except Exception as e:
+        st.session_state.message_log.append(f"Error saving game: {str(e)}")
 
 
 def enemy_attack():
@@ -209,6 +252,7 @@ def solve_puzzle(answer):
         try_encounter()
     else:
         st.session_state.message_log.append("Wrong answer, try again.")
+        st.session_state.in_combat = False
 
 
 def next_floor():

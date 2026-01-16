@@ -671,4 +671,4 @@ def show_exploration_interface():
 
 
 if __name__ == "__main__":
-    main()
+    main() 

@@ -10,8 +10,7 @@ Imports:
     general: Custom game utility functions
     encounter: Custom encounter handling functions
     datetime: for saving game state with timestamps
-    os: For file operations
-    pickle: For object serialization
+    sqlite3: For database operations
 """
 import json
 import streamlit as st
@@ -19,8 +18,9 @@ import random
 import general
 import encounter
 import datetime
+import sqlite3
 import os
-import pickle
+from contextlib import closing
 
 
 # Load game data from JSON file
@@ -38,89 +38,333 @@ MAX_FLOOR = 10
 BASE_SKILL_POINTS = 5
 
 
-class GameState:
-    """Class to encapsulate game state for persistence"""
-    def __init__(self):
-        self.player_class = None
-        self.player_image = None
-        self.health = 0
-        self.max_health = 0
-        self.mana = 0
-        self.max_mana = 0
-        self.strength = 0
-        self.agility = 0
-        self.floor = 1
-        self.skill_points = 0
-        self.pending_skill_points = False
-        self.in_combat = False
-        self.enemy = None
-        self.enemy_health = 0
-        self.in_puzzle = False
-        self.puzzle_solved = False
-        self.message_log = []
-        self.game_over = False
-        self.fighting_boss = False
-        self.solved_puzzles = set()
-        self.enemies_defeated = 0
-        self.defeated_enemies = set()
-        self.encountered_by_floor = {}
-        self.save_timestamp = None
+class GameDatabase:
+    """SQLite database handler for game persistence"""
     
-    def to_dict(self):
-        """Convert game state to dictionary for JSON serialization"""
-        return {
-            'player_class': self.player_class,
-            'player_image': self.player_image,
-            'health': self.health,
-            'max_health': self.max_health,
-            'mana': self.mana,
-            'max_mana': self.max_mana,
-            'strength': self.strength,
-            'agility': self.agility,
-            'floor': self.floor,
-            'skill_points': self.skill_points,
-            'pending_skill_points': self.pending_skill_points,
-            'in_combat': self.in_combat,
-            'enemy': self.enemy,
-            'enemy_health': self.enemy_health,
-            'in_puzzle': self.in_puzzle,
-            'puzzle_solved': self.puzzle_solved,
-            'message_log': self.message_log,
-            'game_over': self.game_over,
-            'fighting_boss': self.fighting_boss,
-            'solved_puzzles': list(self.solved_puzzles),
-            'enemies_defeated': self.enemies_defeated,
-            'defeated_enemies': list(self.defeated_enemies),
-            'encountered_by_floor': self.encountered_by_floor,
-            'save_timestamp': datetime.datetime.now().isoformat()
-        }
+    def __init__(self, db_name="dnd_game.db"):
+        self.db_name = db_name
+        self.init_database()
     
-    def from_dict(self, data):
-        """Load game state from dictionary"""
-        self.player_class = data['player_class']
-        self.player_image = data['player_image']
-        self.health = data['health']
-        self.max_health = data['max_health']
-        self.mana = data['mana']
-        self.max_mana = data['max_mana']
-        self.strength = data['strength']
-        self.agility = data['agility']
-        self.floor = data['floor']
-        self.skill_points = data['skill_points']
-        self.pending_skill_points = data['pending_skill_points']
-        self.in_combat = data['in_combat']
-        self.enemy = data['enemy']
-        self.enemy_health = data['enemy_health']
-        self.in_puzzle = data['in_puzzle']
-        self.puzzle_solved = data['puzzle_solved']
-        self.message_log = data['message_log']
-        self.game_over = data['game_over']
-        self.fighting_boss = data['fighting_boss']
-        self.solved_puzzles = set(data['solved_puzzles'])
-        self.enemies_defeated = data['enemies_defeated']
-        self.defeated_enemies = set(data['defeated_enemies'])
-        self.encountered_by_floor = data['encountered_by_floor']
-        self.save_timestamp = data.get('save_timestamp')
+    def init_database(self):
+        """Initialize database tables"""
+        with closing(sqlite3.connect(self.db_name)) as conn:
+            cursor = conn.cursor()
+            
+            # Create saves table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS game_saves (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    save_name TEXT NOT NULL,
+                    player_class TEXT,
+                    player_image TEXT,
+                    health INTEGER,
+                    max_health INTEGER,
+                    mana INTEGER,
+                    max_mana INTEGER,
+                    strength INTEGER,
+                    agility INTEGER,
+                    floor INTEGER,
+                    skill_points INTEGER,
+                    pending_skill_points INTEGER,
+                    in_combat INTEGER,
+                    enemy TEXT,
+                    enemy_health INTEGER,
+                    in_puzzle INTEGER,
+                    puzzle_solved INTEGER,
+                    message_log TEXT,
+                    game_over INTEGER,
+                    fighting_boss INTEGER,
+                    solved_puzzles TEXT,
+                    enemies_defeated INTEGER,
+                    defeated_enemies TEXT,
+                    encountered_by_floor TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
+            # Create combat_logs table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS combat_logs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    save_id INTEGER,
+                    floor INTEGER,
+                    enemy_name TEXT,
+                    action TEXT,
+                    damage INTEGER,
+                    player_health INTEGER,
+                    enemy_health INTEGER,
+                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (save_id) REFERENCES game_saves(id) ON DELETE CASCADE
+                )
+            """)
+            
+            # Create achievements table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS achievements (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    save_id INTEGER,
+                    achievement_type TEXT,
+                    achievement_name TEXT,
+                    description TEXT,
+                    unlocked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (save_id) REFERENCES game_saves(id) ON DELETE CASCADE
+                )
+            """)
+            
+            conn.commit()
+    
+    def save_game(self, save_name, session_state):
+        """Save game state to database"""
+        with closing(sqlite3.connect(self.db_name)) as conn:
+            cursor = conn.cursor()
+            
+            # Convert sets to JSON strings for storage
+            solved_puzzles_json = json.dumps(list(session_state.solved_puzzles))
+            defeated_enemies_json = json.dumps(list(session_state.defeated_enemies))
+            encountered_by_floor_json = json.dumps(session_state.encountered_by_floor)
+            message_log_json = json.dumps(session_state.message_log)
+            enemy_json = json.dumps(session_state.enemy) if session_state.enemy else '{}'
+            
+            # Check if save already exists
+            cursor.execute("SELECT id FROM game_saves WHERE save_name = ?", (save_name,))
+            existing = cursor.fetchone()
+            
+            if existing:
+                # Update existing save
+                cursor.execute("""
+                    UPDATE game_saves SET
+                        player_class = ?,
+                        player_image = ?,
+                        health = ?,
+                        max_health = ?,
+                        mana = ?,
+                        max_mana = ?,
+                        strength = ?,
+                        agility = ?,
+                        floor = ?,
+                        skill_points = ?,
+                        pending_skill_points = ?,
+                        in_combat = ?,
+                        enemy = ?,
+                        enemy_health = ?,
+                        in_puzzle = ?,
+                        puzzle_solved = ?,
+                        message_log = ?,
+                        game_over = ?,
+                        fighting_boss = ?,
+                        solved_puzzles = ?,
+                        enemies_defeated = ?,
+                        defeated_enemies = ?,
+                        encountered_by_floor = ?,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE save_name = ?
+                """, (
+                    session_state.player_class,
+                    session_state.player_image,
+                    session_state.health,
+                    session_state.max_health,
+                    session_state.mana,
+                    session_state.max_mana,
+                    session_state.strength,
+                    session_state.agility,
+                    session_state.floor,
+                    session_state.skill_points,
+                    1 if session_state.pending_skill_points else 0,
+                    1 if session_state.in_combat else 0,
+                    enemy_json,
+                    session_state.enemy_health,
+                    1 if session_state.in_puzzle else 0,
+                    1 if session_state.puzzle_solved else 0,
+                    message_log_json,
+                    1 if session_state.game_over else 0,
+                    1 if session_state.fighting_boss else 0,
+                    solved_puzzles_json,
+                    session_state.enemies_defeated,
+                    defeated_enemies_json,
+                    encountered_by_floor_json,
+                    save_name
+                ))
+                save_id = existing[0]
+            else:
+                # Insert new save
+                cursor.execute("""
+                    INSERT INTO game_saves (
+                        save_name, player_class, player_image, health, max_health,
+                        mana, max_mana, strength, agility, floor, skill_points,
+                        pending_skill_points, in_combat, enemy, enemy_health,
+                        in_puzzle, puzzle_solved, message_log, game_over,
+                        fighting_boss, solved_puzzles, enemies_defeated,
+                        defeated_enemies, encountered_by_floor
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    save_name,
+                    session_state.player_class,
+                    session_state.player_image,
+                    session_state.health,
+                    session_state.max_health,
+                    session_state.mana,
+                    session_state.max_mana,
+                    session_state.strength,
+                    session_state.agility,
+                    session_state.floor,
+                    session_state.skill_points,
+                    1 if session_state.pending_skill_points else 0,
+                    1 if session_state.in_combat else 0,
+                    enemy_json,
+                    session_state.enemy_health,
+                    1 if session_state.in_puzzle else 0,
+                    1 if session_state.puzzle_solved else 0,
+                    message_log_json,
+                    1 if session_state.game_over else 0,
+                    1 if session_state.fighting_boss else 0,
+                    solved_puzzles_json,
+                    session_state.enemies_defeated,
+                    defeated_enemies_json,
+                    encountered_by_floor_json
+                ))
+                save_id = cursor.lastrowid
+            
+            # Log combat action if in combat
+            if session_state.in_combat and session_state.enemy:
+                cursor.execute("""
+                    INSERT INTO combat_logs (save_id, floor, enemy_name, player_health, enemy_health)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (
+                    save_id,
+                    session_state.floor,
+                    session_state.enemy.get('name', 'Unknown'),
+                    session_state.health,
+                    session_state.enemy_health
+                ))
+            
+            # Check for achievements
+            self.check_achievements(cursor, save_id, session_state)
+            
+            conn.commit()
+            
+            # Update session state with save info
+            if hasattr(session_state, 'save_info'):
+                session_state.save_info = {'id': save_id, 'name': save_name}
+            
+            return save_id
+    
+    def check_achievements(self, cursor, save_id, session_state):
+        """Check and record achievements"""
+        achievements = []
+        
+        # Floor progression achievements
+        if session_state.floor >= 5:
+            achievements.append(('floor', 'Tower Explorer', 'Reached floor 5'))
+        if session_state.floor >= 10:
+            achievements.append(('floor', 'Tower Master', 'Reached floor 10'))
+        
+        # Combat achievements
+        if len(session_state.defeated_enemies) >= 10:
+            achievements.append(('combat', 'Monster Slayer', 'Defeated 10 enemies'))
+        
+        # Puzzle achievements
+        if len(session_state.solved_puzzles) >= 5:
+            achievements.append(('puzzle', 'Puzzle Master', 'Solved 5 puzzles'))
+        
+        # Boss achievements
+        if session_state.fighting_boss and session_state.enemy_health <= 0:
+            boss_name = session_state.enemy.get('name', 'Boss')
+            achievements.append(('boss', f'Slayer of {boss_name}', f'Defeated {boss_name}'))
+        
+        # Save achievements
+        for achievement_type, name, description in achievements:
+            cursor.execute("""
+                INSERT INTO achievements (save_id, achievement_type, achievement_name, description)
+                SELECT ?, ?, ?, ?
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM achievements 
+                    WHERE save_id = ? AND achievement_name = ?
+                )
+            """, (save_id, achievement_type, name, description, save_id, name))
+    
+    def load_game(self, save_name):
+        """Load game state from database"""
+        with closing(sqlite3.connect(self.db_name)) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM game_saves WHERE save_name = ?", (save_name,))
+            row = cursor.fetchone()
+            
+            if not row:
+                return None
+            
+            # Get column names
+            columns = [desc[0] for desc in cursor.description]
+            save_data = dict(zip(columns, row))
+            
+            # Parse JSON fields
+            save_data['solved_puzzles'] = set(json.loads(save_data['solved_puzzles'] or '[]'))
+            save_data['defeated_enemies'] = set(json.loads(save_data['defeated_enemies'] or '[]'))
+            save_data['encountered_by_floor'] = json.loads(save_data['encountered_by_floor'] or '{}')
+            save_data['message_log'] = json.loads(save_data['message_log'] or '[]')
+            
+            # Parse enemy data
+            enemy_data = json.loads(save_data['enemy'] or '{}')
+            save_data['enemy'] = enemy_data if enemy_data else None
+            
+            # Convert boolean fields
+            bool_fields = ['pending_skill_points', 'in_combat', 'in_puzzle', 
+                          'puzzle_solved', 'game_over', 'fighting_boss']
+            for field in bool_fields:
+                save_data[field] = bool(save_data[field])
+            
+            return save_data
+    
+    def delete_game(self, save_name):
+        """Delete a saved game"""
+        with closing(sqlite3.connect(self.db_name)) as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM game_saves WHERE save_name = ?", (save_name,))
+            conn.commit()
+            return cursor.rowcount > 0
+    
+    def list_saves(self):
+        """List all saved games"""
+        with closing(sqlite3.connect(self.db_name)) as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT save_name, player_class, floor, created_at, updated_at
+                FROM game_saves 
+                ORDER BY updated_at DESC
+            """)
+            return cursor.fetchall()
+    
+    def get_achievements(self, save_name):
+        """Get achievements for a saved game"""
+        with closing(sqlite3.connect(self.db_name)) as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT a.achievement_name, a.description, a.unlocked_at
+                FROM achievements a
+                JOIN game_saves s ON a.save_id = s.id
+                WHERE s.save_name = ?
+                ORDER BY a.unlocked_at DESC
+            """, (save_name,))
+            return cursor.fetchall()
+    
+    def get_combat_history(self, save_name, limit=10):
+        """Get combat history for a saved game"""
+        with closing(sqlite3.connect(self.db_name)) as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT cl.floor, cl.enemy_name, cl.action, cl.damage, 
+                       cl.player_health, cl.enemy_health, cl.timestamp
+                FROM combat_logs cl
+                JOIN game_saves s ON cl.save_id = s.id
+                WHERE s.save_name = ?
+                ORDER BY cl.timestamp DESC
+                LIMIT ?
+            """, (save_name, limit))
+            return cursor.fetchall()
+
+
+# Initialize database
+db = GameDatabase()
 
 
 def apply_skill_points(hp_points, mana_points, str_points, agi_points):
@@ -151,7 +395,8 @@ def apply_skill_points(hp_points, mana_points, str_points, agi_points):
         st.session_state.pending_skill_points = False
     
     # Save game after applying points
-    save_game_state()
+    if hasattr(st.session_state, 'current_save_name'):
+        db.save_game(st.session_state.current_save_name, st.session_state)
     return True
 
 
@@ -189,7 +434,8 @@ def player_attack(skill=None):
 
     if st.session_state.enemy_health <= 0:
         general.handle_victory(st.session_state, encounter, BOSSES, BASE_SKILL_POINTS)
-        save_game_state()
+        if hasattr(st.session_state, 'current_save_name'):
+            db.save_game(st.session_state.current_save_name, st.session_state)
     else:
         enemy_attack()
 
@@ -228,115 +474,14 @@ def start_game(chosen_class):
         defeated_enemies=set(),
         encountered_by_floor={},
     )
-    # Create initial save file
-    save_game_state()
     
-    
-def save_game_state():
-    """
-    Save current game state to a JSON file
-    
-    Uses two formats: JSON for human readability and pickle for complete object serialization
-    """
-    try:
-        # Create GameState object for serialization
-        game_state = GameState()
-        game_state.from_dict(st.session_state.to_dict())
-        
-        # Save as JSON (human readable)
-        save_data = game_state.to_dict()
-        json_filename = f"dnd_save_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-        
-        with open(json_filename, 'w') as f:
-            json.dump(save_data, f, indent=4)
-            
-        # Save as pickle (complete object)
-        pickle_filename = f"dnd_save_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.pkl"
-        with open(pickle_filename, 'wb') as f:
-            pickle.dump(game_state, f)
-            
-        st.session_state.message_log.append(f"Game saved to {json_filename} and {pickle_filename}")
-        
-        # Update timestamp in session state
-        st.session_state.save_timestamp = save_data['save_timestamp']
-        
-    except Exception as e:
-        st.session_state.message_log.append(f"Error saving game: {str(e)}")
-
-
-def load_game_state(filename):
-    """
-    Load game state from file
-    
-    Args:
-        filename (str): Path to save file
-    """
-    try:
-        if filename.endswith('.json'):
-            with open(filename, 'r') as f:
-                save_data = json.load(f)
-            
-            # Create GameState object and load data
-            game_state = GameState()
-            game_state.from_dict(save_data)
-            
-        elif filename.endswith('.pkl'):
-            with open(filename, 'rb') as f:
-                game_state = pickle.load(f)
-        else:
-            st.session_state.message_log.append("Unsupported file format")
-            return False
-        
-        # Update session state from loaded game state
-        st.session_state.player_class = game_state.player_class
-        st.session_state.player_image = game_state.player_image
-        st.session_state.health = game_state.health
-        st.session_state.max_health = game_state.max_health
-        st.session_state.mana = game_state.mana
-        st.session_state.max_mana = game_state.max_mana
-        st.session_state.strength = game_state.strength
-        st.session_state.agility = game_state.agility
-        st.session_state.floor = game_state.floor
-        st.session_state.skill_points = game_state.skill_points
-        st.session_state.pending_skill_points = game_state.pending_skill_points
-        st.session_state.in_combat = game_state.in_combat
-        st.session_state.enemy = game_state.enemy
-        st.session_state.enemy_health = game_state.enemy_health
-        st.session_state.in_puzzle = game_state.in_puzzle
-        st.session_state.puzzle_solved = game_state.puzzle_solved
-        st.session_state.message_log = game_state.message_log
-        st.session_state.game_over = game_state.game_over
-        st.session_state.fighting_boss = game_state.fighting_boss
-        st.session_state.solved_puzzles = game_state.solved_puzzles
-        st.session_state.enemies_defeated = game_state.enemies_defeated
-        st.session_state.defeated_enemies = game_state.defeated_enemies
-        st.session_state.encountered_by_floor = game_state.encountered_by_floor
-        st.session_state.save_timestamp = game_state.save_timestamp
-        
-        st.session_state.message_log.append(f"Game loaded from {filename}")
-        return True
-        
-    except Exception as e:
-        st.session_state.message_log.append(f"Error loading game: {str(e)}")
-        return False
-
-
-def list_save_files():
-    """List all available save files"""
-    json_files = [f for f in os.listdir('.') if f.startswith('dnd_save_') and f.endswith('.json')]
-    pickle_files = [f for f in os.listdir('.') if f.startswith('dnd_save_') and f.endswith('.pkl')]
-    return sorted(json_files + pickle_files, reverse=True)
-
-
-def delete_save_file(filename):
-    """Delete a save file"""
-    try:
-        os.remove(filename)
-        st.session_state.message_log.append(f"Deleted save file: {filename}")
-        return True
-    except Exception as e:
-        st.session_state.message_log.append(f"Error deleting file: {str(e)}")
-        return False
+    # Ask for save name
+    save_name = st.text_input("Enter a name for your save file:", 
+                              value=f"{chosen_class}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}")
+    if save_name:
+        st.session_state.current_save_name = save_name
+        db.save_game(save_name, st.session_state)
+        st.session_state.message_log.append(f"Game saved as: {save_name}")
 
 
 def enemy_attack():
@@ -360,7 +505,8 @@ def enemy_attack():
         st.session_state.health = 0
         st.session_state.game_over = True
         st.session_state.message_log.append("You died. Game over.")
-        save_game_state()
+        if hasattr(st.session_state, 'current_save_name'):
+            db.save_game(st.session_state.current_save_name, st.session_state)
 
 
 def solve_puzzle(answer):
@@ -381,7 +527,8 @@ def solve_puzzle(answer):
         st.session_state.message_log.append("Puzzle solved! You may proceed.")
         st.session_state.skill_points += BASE_SKILL_POINTS
         st.session_state.pending_skill_points = True
-        save_game_state()
+        if hasattr(st.session_state, 'current_save_name'):
+            db.save_game(st.session_state.current_save_name, st.session_state)
         try_encounter()
     else:
         st.session_state.message_log.append("Wrong answer, try again.")
@@ -403,11 +550,13 @@ def next_floor():
         st.session_state.in_puzzle = False
         st.session_state.puzzle_solved = False
         st.session_state.fighting_boss = False
-        save_game_state()
+        if hasattr(st.session_state, 'current_save_name'):
+            db.save_game(st.session_state.current_save_name, st.session_state)
     else:
         st.session_state.message_log.append("You have reached the top of the tower!")
         st.session_state.game_over = True
-        save_game_state()
+        if hasattr(st.session_state, 'current_save_name'):
+            db.save_game(st.session_state.current_save_name, st.session_state)
 
 
 def try_encounter():
@@ -440,7 +589,8 @@ def cast_spell():
         st.session_state.message_log.append(f"You cast a spell dealing {damage} damage!")
         if st.session_state.enemy_health <= 0:
             general.handle_victory(st.session_state, encounter, BOSSES, BASE_SKILL_POINTS)
-            save_game_state()
+            if hasattr(st.session_state, 'current_save_name'):
+                db.save_game(st.session_state.current_save_name, st.session_state)
         else:
             enemy_attack()
     else:
@@ -461,7 +611,8 @@ def rest():
     st.session_state.message_log.append(f"You rest and recover {heal_amount} HP and {mana_amount} mana.")
     
     # Save game after resting
-    save_game_state()
+    if hasattr(st.session_state, 'current_save_name'):
+        db.save_game(st.session_state.current_save_name, st.session_state)
     try_encounter()
 
 
@@ -475,21 +626,31 @@ if not st.session_state.player_class:
     st.header("Choose Your Starter Class")
     
     # Load saved games section
-    save_files = list_save_files()
-    if save_files:
+    saves = db.list_saves()
+    if saves:
         with st.expander("📂 Load Saved Game", expanded=False):
-            st.write("Available save files (newest first):")
-            for save_file in save_files:
+            st.write("Available save files:")
+            for save in saves:
+                save_name, player_class, floor, created_at, updated_at = save
                 col1, col2, col3 = st.columns([3, 1, 1])
                 with col1:
-                    st.text(save_file)
+                    st.write(f"**{save_name}**")
+                    st.caption(f"Class: {player_class} | Floor: {floor}")
+                    st.caption(f"Last played: {updated_at[:19]}")
                 with col2:
-                    if st.button("Load", key=f"load_{save_file}"):
-                        if load_game_state(save_file):
+                    if st.button("Load", key=f"load_{save_name}"):
+                        save_data = db.load_game(save_name)
+                        if save_data:
+                            # Update session state
+                            for key, value in save_data.items():
+                                if key not in ['id', 'save_name', 'created_at', 'updated_at']:
+                                    st.session_state[key] = value
+                            st.session_state.current_save_name = save_name
                             st.rerun()
                 with col3:
-                    if st.button("🗑️", key=f"delete_{save_file}"):
-                        if delete_save_file(save_file):
+                    if st.button("🗑️", key=f"delete_{save_name}"):
+                        if db.delete_game(save_name):
+                            st.success(f"Deleted save: {save_name}")
                             st.rerun()
     
     st.markdown("---")
@@ -521,44 +682,58 @@ else:
     st.sidebar.write(f"🤸 Agility: {st.session_state.agility}")
     st.sidebar.write(f"⭐ Skill Points: {st.session_state.skill_points}")
     
-    # Save/Load section in sidebar
+    # Database section in sidebar
     st.sidebar.markdown("---")
-    st.sidebar.subheader("💾 Save/Load")
+    st.sidebar.subheader("💾 Database")
     
-    col1, col2 = st.sidebar.columns(2)
-    with col1:
-        if st.button("Save Game"):
-            save_game_state()
-            st.rerun()
-    with col2:
-        if st.button("Quick Load"):
-            save_files = list_save_files()
-            if save_files:
-                load_game_state(save_files[0])
+    if hasattr(st.session_state, 'current_save_name'):
+        st.sidebar.write(f"Save: {st.session_state.current_save_name}")
+        
+        col1, col2 = st.sidebar.columns(2)
+        with col1:
+            if st.button("💾 Save"):
+                db.save_game(st.session_state.current_save_name, st.session_state)
+                st.sidebar.success("Game saved!")
                 st.rerun()
-            else:
-                st.sidebar.warning("No save files found")
+        with col2:
+            if st.button("📊 Stats"):
+                # Show achievements
+                achievements = db.get_achievements(st.session_state.current_save_name)
+                if achievements:
+                    st.sidebar.subheader("🏆 Achievements")
+                    for name, desc, unlocked in achievements:
+                        st.sidebar.write(f"**{name}**: {desc}")
     
-    # Show last save time if available
-    if hasattr(st.session_state, 'save_timestamp') and st.session_state.save_timestamp:
-        try:
-            save_time = datetime.datetime.fromisoformat(st.session_state.save_timestamp)
-            st.sidebar.caption(f"Last save: {save_time.strftime('%H:%M:%S')}")
-        except:
-            pass
-
     # Game over screen
     if st.session_state.game_over:
         st.error("💀 You died! Game Over." if st.session_state.health <= 0 else "🎉 You conquered all floors! You win!")
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("Restart"):
-                general.init_game(st.session_state, FLOOR_STORY[0])
-                st.rerun()
-        with col2:
-            if st.button("Save Final State"):
-                save_game_state()
-                st.rerun()
+        
+        # Show final statistics
+        if hasattr(st.session_state, 'current_save_name'):
+            achievements = db.get_achievements(st.session_state.current_save_name)
+            combat_history = db.get_combat_history(st.session_state.current_save_name, 5)
+            
+            with st.expander("📊 Final Statistics"):
+                st.write(f"**Final Floor**: {st.session_state.floor}")
+                st.write(f"**Enemies Defeated**: {len(st.session_state.defeated_enemies)}")
+                st.write(f"**Puzzles Solved**: {len(st.session_state.solved_puzzles)}")
+                
+                if achievements:
+                    st.subheader("🏆 Achievements Unlocked")
+                    for name, desc, unlocked in achievements:
+                        st.write(f"• **{name}**: {desc}")
+                
+                if combat_history:
+                    st.subheader("⚔️ Recent Combat History")
+                    for combat in combat_history:
+                        floor, enemy, action, damage, player_hp, enemy_hp, timestamp = combat
+                        st.write(f"Floor {floor}: vs {enemy} - Player HP: {player_hp}, Enemy HP: {enemy_hp}")
+        
+        if st.button("Restart"):
+            general.init_game(st.session_state, FLOOR_STORY[0])
+            if hasattr(st.session_state, 'current_save_name'):
+                del st.session_state.current_save_name
+            st.rerun()
     else:
         # Game log display
         st.subheader("Game Log")
@@ -627,18 +802,14 @@ else:
             # Exploration interface
             else:
                 if st.session_state.floor <= MAX_FLOOR:
-                    col1, col2, col3 = st.columns(3)
+                    col1, col2 = st.columns(2)
                     with col1:
-                        if st.button("🔍 Explore"):
+                        if st.button("Explore"):
                             try_encounter()
                             st.rerun()
                     with col2:
-                        if st.button("💤 Rest"):
+                        if st.button("Rest"):
                             rest()
-                            st.rerun()
-                    with col3:
-                        if st.button("💾 Quick Save"):
-                            save_game_state()
                             st.rerun()
                 else:
                     st.success("Congratulations! You've conquered the tower!")

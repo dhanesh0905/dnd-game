@@ -1,15 +1,5 @@
+def init_game(session_state, floor):
 
-def init_game(session_state , floor, ):
-    """
-    Initializes the game state with default values for a new game session.
-
-    Sets up player attributes, combat status, puzzle status, and game progress trackers.
-    The starting floor number is recorded in the message log.
-
-    Parameters:
-    session_state (dict): The game state dictionary to initialize
-    floor (int): Starting floor number (recorded in message log)
-    """
     session_state.update(
         player_class=None,
         health=0,
@@ -32,23 +22,11 @@ def init_game(session_state , floor, ):
         solved_puzzles=set(),
         enemies_defeated=0,
         defeated_enemies=set(),
-        encountered_by_floor={},
     )
-    
-    
-"""
-    Advances the player to the next floor and updates game state accordingly.
 
-    Resets combat/puzzle states, appends progression messages to the log, and handles
-    game completion when reaching the maximum floor. Boss status is cleared upon advancement.
 
-    Parameters:
-    session_state (dict): Current game state to modify
-    floor_story (dict): Mapping of floor numbers to their introductory story text
-    MAX_FLOOR (int): Highest possible floor number (top of tower)
-    """
 def next_floor(session_state, floor_story, MAX_FLOOR):
-    
+
     if session_state.floor < MAX_FLOOR:
         session_state.floor += 1
         session_state.enemies_defeated = 0
@@ -63,22 +41,9 @@ def next_floor(session_state, floor_story, MAX_FLOOR):
     else:
         session_state.message_log.append("You have reached the top of the tower!")
         session_state.game_over = True
-        
-        
-        
-"""
-    Processes victory outcomes after defeating an enemy.
 
-    Updates defeat trackers, awards skill points, triggers boss encounters when conditions
-    are met, and prepares for skill point allocation. Handles both regular and boss victories.
 
-    Parameters:
-    session_state (dict): Game state to update
-    encounter (object): Encounter controller with start_boss() method
-    bosses (dict): Boss data for current floor
-    BASE_SKILL_POINTS (int): Base skill points awarded for regular enemies (doubled for bosses)
-    """
-def handle_victory(session_state, encounter , bosses, BASE_SKILL_POINTS):
+def handle_victory(session_state, encounter, bosses, BASE_SKILL_POINTS):
 
     enemy_name = session_state.enemy['name']
     session_state.defeated_enemies.add(enemy_name)
@@ -87,13 +52,13 @@ def handle_victory(session_state, encounter , bosses, BASE_SKILL_POINTS):
         session_state.message_log.append(f"You defeated the boss {enemy_name}!")
         session_state.skill_points += BASE_SKILL_POINTS * 2
         session_state.fighting_boss = False
-        next_floor()
+        next_floor(session_state, {}, 10)  # Empty floor_story since we handle messages in main
     else:
         session_state.message_log.append(f"You defeated the {enemy_name}!")
         session_state.enemies_defeated += 1
         session_state.skill_points += BASE_SKILL_POINTS
         if session_state.enemies_defeated >= 3:
-            encounter.start_boss(session_state, bosses )
+            encounter.start_boss(session_state, bosses)
 
     session_state.pending_skill_points = True
     session_state.in_combat = False

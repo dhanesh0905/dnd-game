@@ -1,19 +1,7 @@
- {
+{
   "GAME_CONFIG": {
     "MAX_FLOOR": 10,
-    "BASE_SKILL_POINTS": 5,
-    "HISTORY_SETTINGS": {
-      "MAX_HISTORY_ENTRIES": 10,
-      "DEFAULT_MESSAGE": "Your adventure begins!",
-      "VICTORY_MESSAGES": {
-        "regular": "You defeated the {enemy}!",
-        "boss": "You conquered {boss} and gained {points} skill points!"
-      },
-      "DEFEAT_MESSAGES": {
-        "regular": "You were defeated by {enemy}...",
-        "boss": "The mighty {boss} was too strong for you..."
-      }
-    }
+    "BASE_SKILL_POINTS": 5
   },
   
   "CLASSES": {

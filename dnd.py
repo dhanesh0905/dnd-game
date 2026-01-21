@@ -1,8 +1,4 @@
 """
-A Streamlit-based dnd game where players choose a character class, battle enemies, 
-solve puzzles, and progress through floors of a tower. Includes character progression 
-through skill points and combat mechanics.
-
 Imports:
     json: For loading game data and serialization
     streamlit (st): For creating the web UI
@@ -23,7 +19,7 @@ import os
 from contextlib import closing
 
 
-# Load game data from JSON file
+# Loading the game from the json file 
 with open('dnd_game_data.json', 'r') as f:
     game_data = json.load(f)
 
@@ -52,65 +48,15 @@ class GameDatabase:
             
             # Create saves table
             cursor.execute("""
-                CREATE TABLE IF NOT EXISTS game_saves (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    save_name TEXT NOT NULL,
-                    player_class TEXT,
-                    player_image TEXT,
-                    health INTEGER,
-                    max_health INTEGER,
-                    mana INTEGER,
-                    max_mana INTEGER,
-                    strength INTEGER,
-                    agility INTEGER,
-                    floor INTEGER,
-                    skill_points INTEGER,
-                    pending_skill_points INTEGER,
-                    in_combat INTEGER,
-                    enemy TEXT,
-                    enemy_health INTEGER,
-                    in_puzzle INTEGER,
-                    puzzle_solved INTEGER,
-                    message_log TEXT,
-                    game_over INTEGER,
-                    fighting_boss INTEGER,
-                    solved_puzzles TEXT,
-                    enemies_defeated INTEGER,
-                    defeated_enemies TEXT,
-                    encountered_by_floor TEXT,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
+                CREATES TABLE IF NOT EXISTS game_saves (id INTEGER PRIMARY KEY AUTOINCREMENT,save_name TEXT NOT NULL,player_class TEXT,player_image TEXT,health INTEGER,max_health INTEGER,mana INTEGER,max_mana INTEGER,strength INTEGER,agility INTEGER,
+                    floor INTEGER,updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
             
             # Create combat_logs table
             cursor.execute("""
-                CREATE TABLE IF NOT EXISTS combat_logs (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    save_id INTEGER,
-                    floor INTEGER,
-                    enemy_name TEXT,
-                    action TEXT,
-                    damage INTEGER,
-                    player_health INTEGER,
-                    enemy_health INTEGER,
-                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (save_id) REFERENCES game_saves(id) ON DELETE CASCADE
-                )
-            """)
+                CREATE TABLE IF NOT EXISTS combat_logs ( id INTEGER PRIMARY KEY AUTOINCREMENT,save_id INTEGER, floor INTEGER, enemy_name TEXT,action TEXT,damage INTEGER,player_health INTEGER, enemy_health INTEGER,timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,FOREIGN KEY (save_id) REFERENCES game_saves(id) ON DELETE CASCADE)""")
             
             # Create achievements table
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS achievements (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    save_id INTEGER,
-                    achievement_type TEXT,
-                    achievement_name TEXT,
-                    description TEXT,
-                    unlocked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (save_id) REFERENCES game_saves(id) ON DELETE CASCADE
-                )
-            """)
+            cursor.execute("""CREATE TABLE IF NOT EXISTS achievements (id INTEGER PRIMARY KEY AUTOINCREMENT,save_id INTEGER,achievement_type TEXT,achievement_name TEXT,description TEXT, unlocked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (save_id) REFERENCES game_saves(id) ON DELETE CASCADE)""")
             
             conn.commit()
     
@@ -132,34 +78,8 @@ class GameDatabase:
             
             if existing:
                 # Update existing save
-                cursor.execute("""
-                    UPDATE game_saves SET
-                        player_class = ?,
-                        player_image = ?,
-                        health = ?,
-                        max_health = ?,
-                        mana = ?,
-                        max_mana = ?,
-                        strength = ?,
-                        agility = ?,
-                        floor = ?,
-                        skill_points = ?,
-                        pending_skill_points = ?,
-                        in_combat = ?,
-                        enemy = ?,
-                        enemy_health = ?,
-                        in_puzzle = ?,
-                        puzzle_solved = ?,
-                        message_log = ?,
-                        game_over = ?,
-                        fighting_boss = ?,
-                        solved_puzzles = ?,
-                        enemies_defeated = ?,
-                        defeated_enemies = ?,
-                        encountered_by_floor = ?,
-                        updated_at = CURRENT_TIMESTAMP
-                    WHERE save_name = ?
-                """, (
+                cursor.execute(
+                    , (
                     session_state.player_class,
                     session_state.player_image,
                     session_state.health,
@@ -188,16 +108,7 @@ class GameDatabase:
                 save_id = existing[0]
             else:
                 # Insert new save
-                cursor.execute("""
-                    INSERT INTO game_saves (
-                        save_name, player_class, player_image, health, max_health,
-                        mana, max_mana, strength, agility, floor, skill_points,
-                        pending_skill_points, in_combat, enemy, enemy_health,
-                        in_puzzle, puzzle_solved, message_log, game_over,
-                        fighting_boss, solved_puzzles, enemies_defeated,
-                        defeated_enemies, encountered_by_floor
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (
+                cursor.execute(, (
                     save_name,
                     session_state.player_class,
                     session_state.player_image,
@@ -227,10 +138,8 @@ class GameDatabase:
             
             # Log combat action if in combat
             if session_state.in_combat and session_state.enemy:
-                cursor.execute("""
-                    INSERT INTO combat_logs (save_id, floor, enemy_name, player_health, enemy_health)
-                    VALUES (?, ?, ?, ?, ?)
-                """, (
+                cursor.execute(
+                    , (
                     save_id,
                     session_state.floor,
                     session_state.enemy.get('name', 'Unknown'),
@@ -274,14 +183,8 @@ class GameDatabase:
         
         # Save achievements
         for achievement_type, name, description in achievements:
-            cursor.execute("""
-                INSERT INTO achievements (save_id, achievement_type, achievement_name, description)
-                SELECT ?, ?, ?, ?
-                WHERE NOT EXISTS (
-                    SELECT 1 FROM achievements 
-                    WHERE save_id = ? AND achievement_name = ?
-                )
-            """, (save_id, achievement_type, name, description, save_id, name))
+            cursor.execute(
+                , (save_id, achievement_type, name, description, save_id, name))
     
     def load_game(self, save_name):
         """Load game state from database"""
@@ -327,39 +230,21 @@ class GameDatabase:
         """List all saved games"""
         with closing(sqlite3.connect(self.db_name)) as conn:
             cursor = conn.cursor()
-            cursor.execute("""
-                SELECT save_name, player_class, floor, created_at, updated_at
-                FROM game_saves 
-                ORDER BY updated_at DESC
-            """)
+            cursor.execute()
             return cursor.fetchall()
     
     def get_achievements(self, save_name):
         """Get achievements for a saved game"""
         with closing(sqlite3.connect(self.db_name)) as conn:
             cursor = conn.cursor()
-            cursor.execute("""
-                SELECT a.achievement_name, a.description, a.unlocked_at
-                FROM achievements a
-                JOIN game_saves s ON a.save_id = s.id
-                WHERE s.save_name = ?
-                ORDER BY a.unlocked_at DESC
-            """, (save_name,))
+            cursor.execute(, (save_name,))
             return cursor.fetchall()
     
     def get_combat_history(self, save_name, limit=10):
         """Get combat history for a saved game"""
         with closing(sqlite3.connect(self.db_name)) as conn:
             cursor = conn.cursor()
-            cursor.execute("""
-                SELECT cl.floor, cl.enemy_name, cl.action, cl.damage, 
-                       cl.player_health, cl.enemy_health, cl.timestamp
-                FROM combat_logs cl
-                JOIN game_saves s ON cl.save_id = s.id
-                WHERE s.save_name = ?
-                ORDER BY cl.timestamp DESC
-                LIMIT ?
-            """, (save_name, limit))
+            cursor.execute(, (save_name, limit))
             return cursor.fetchall()
 
 
@@ -368,18 +253,7 @@ db = GameDatabase()
 
 
 def apply_skill_points(hp_points, mana_points, str_points, agi_points):
-    """
-    Distribute skill points to character attributes
-
-    Args:
-        hp_points (int): Points to allocate to health
-        mana_points (int): Points to allocate to mana
-        str_points (int): Points to allocate to strength
-        agi_points (int): Points to allocate to agility
-
-    Returns:
-        bool: True if points were successfully applied, False otherwise
-    """
+   
     total = hp_points + mana_points + str_points + agi_points
     if total > st.session_state.skill_points:
         st.error(f"Only {st.session_state.skill_points} skill points available.")
@@ -401,12 +275,7 @@ def apply_skill_points(hp_points, mana_points, str_points, agi_points):
 
 
 def player_attack(skill=None):
-    """
-    Execute player's attack 
-
-    Args:
-        skill (str, optional): Specific skill to use. Defaults to basic attack.
-    """
+   
     if not st.session_state.in_combat or st.session_state.game_over:
         return
 
@@ -441,12 +310,7 @@ def player_attack(skill=None):
 
 
 def start_game(chosen_class):
-    """
-    Initialize game state for new game
 
-    Args:
-        chosen_class (str): Player's selected character class
-    """
     stats = CLASSES[chosen_class]
     st.session_state.update(
         player_class=chosen_class,

@@ -1,44 +1,96 @@
 {
   "GAME_CONFIG": {
-    "MAX_FLOOR": 10,
-    "BASE_SKILL_POINTS": 5
+    "MAX_FLOOR": 15,
+    "BASE_SKILL_POINTS": 5,
+    "MIN_ENCOUNTER_CHANCE": 0.3,
+    "MAX_ENCOUNTER_CHANCE": 0.8,
+    "REST_HEAL_AMOUNT": 30,
+    "CRITICAL_HIT_CHANCE_BASE": 0.3
   },
   
   "CLASSES": {
     "Knight": {
       "image_url": "https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExZXpuMmcwOHBpaDNhaGd3MnZvNW0ya3k0dncxbmNtMmU2YTNld2FvdyZlcD12MV9naWZzX3NlYXJjaCZjdD1n/bHSkKRvkRvy5chUBBp/200.webp",
-      "health": 100,
-      "mana": 20,
-      "strength": 15,
-      "agility": 8,
-      "description": "A strong melee fighter with high health and strength.",
+      "health": 120,
+      "mana": 25,
+      "strength": 18,
+      "agility": 6,
+      "description": "A stalwart defender with heavy armor and shield. Excels at close combat.",
       "skills": {
-        "Shield Bash": {"cost": 15, "damage_mult": 1.5},
-        "Whirlwind": {"cost": 25, "damage_mult": 2.0}
+        "Shield Bash": {"cost": 15, "damage_mult": 1.5, "effect": "stun_chance", "description": "Bashes enemy with shield, chance to stun"},
+        "Whirlwind": {"cost": 25, "damage_mult": 2.0, "effect": "aoe", "description": "Spins weapon hitting all nearby enemies"}
       }
     },
     "Mage": {
       "image_url": "https://media0.giphy.com/media/4N7vyQva5gsOKR3UKx/giphy.gif?cid=6c09b95218j83nhhxmj8gew7z29sydt5rauew5rrlp44tp9z&ep=v1_internal_gif_by_id&rid=giphy.gif&ct=g",
-      "health": 60,
-      "mana": 100,
-      "strength": 5,
-      "agility": 10,
-      "description": "A spellcaster with powerful magic but low health.",
+      "health": 70,
+      "mana": 120,
+      "strength": 4,
+      "agility": 8,
+      "description": "Master of arcane arts, wielding devastating elemental magic.",
       "skills": {
-        "Firestorm": {"cost": 30, "damage_mult": 2.5},
-        "Ice Prison": {"cost": 25, "damage_mult": 1.8}
+        "Firestorm": {"cost": 35, "damage_mult": 2.8, "effect": "burn", "description": "Summons a storm of fire that burns over time"},
+        "Ice Prison": {"cost": 30, "damage_mult": 1.8, "effect": "freeze", "description": "Encases enemy in ice, freezing them temporarily"}
       }
     },
     "Shadow": {
-      "image_url": "https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExdmJqamM3bjI3Y2MyZTE0dnBtM2I4aGg3eDR2dmVuM2Q4OGhicTZnNiZlcD12MV9naWZzX3NlYXJjaCZjdD1n/tx8UtrSC02lXO/200.webp",
-      "health": 80,
-      "mana": 40,
-      "strength": 10,
-      "agility": 18,
-      "description": "A stealthy assassin with high agility and balanced stats.",
+      "image_url": "https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExdmJqamM3njI3Y2MyZTE0dnBtM2I4aGg3eDR2dmVuM2Q4OGhicTZnNiZlcD12MV9naWZzX3NlYXJjaCZjdD1n/tx8UtrSC02lXO/200.webp",
+      "health": 85,
+      "mana": 50,
+      "strength": 12,
+      "agility": 22,
+      "description": "A stealthy assassin who strikes from darkness with precision.",
       "skills": {
-        "Backstab": {"cost": 20, "damage_mult": 2.2},
-        "Poison Dart": {"cost": 15, "damage_mult": 1.5}
+        "Backstab": {"cost": 25, "damage_mult": 2.8, "effect": "crit_boost", "description": "Sneak attack that guarantees critical hit"},
+        "Poison Dart": {"cost": 20, "damage_mult": 1.5, "effect": "poison", "description": "Poisoned dart that deals damage over time"}
+      }
+    },
+    "Paladin": {
+      "image_url": "https://media1.tenor.com/m/MiIxNwmPA7wAAAAd/paladin-diablo.gif",
+      "health": 110,
+      "mana": 60,
+      "strength": 16,
+      "agility": 10,
+      "description": "Holy warrior who combines combat prowess with healing magic.",
+      "skills": {
+        "Holy Smite": {"cost": 20, "damage_mult": 1.8, "effect": "holy", "description": "Divine strike that deals extra damage to undead"},
+        "Lay on Hands": {"cost": 30, "damage_mult": 0, "effect": "heal_self", "description": "Heals 50% of max health"}
+      }
+    },
+    "Ranger": {
+      "image_url": "https://media.tenor.com/Q2oY4RuGBY4AAAAM/elven-ranger-veteran-elf-ranger.gif",
+      "health": 90,
+      "mana": 40,
+      "strength": 14,
+      "agility": 20,
+      "description": "Expert marksman and tracker who fights from a distance.",
+      "skills": {
+        "Rapid Fire": {"cost": 15, "damage_mult": 1.8, "effect": "multi_hit", "description": "Fires 3 quick arrows in succession"},
+        "Tracking Shot": {"cost": 20, "damage_mult": 2.2, "effect": "mark_target", "description": "Never misses and marks enemy for extra damage"}
+      }
+    },
+    "Berserker": {
+      "image_url": "https://media.tenor.com/tKUzbi783KwAAAAM/bers.gif",
+      "health": 140,
+      "mana": 15,
+      "strength": 24,
+      "agility": 8,
+      "description": "Unstoppable fury in battle, trading defense for overwhelming power.",
+      "skills": {
+        "Rage": {"cost": 10, "damage_mult": 2.5, "effect": "self_damage", "description": "Deals massive damage but takes 10% of damage dealt"},
+        "Earth Shatter": {"cost": 20, "damage_mult": 2.0, "effect": "stun_aoe", "description": "Slams ground, stunning all enemies"}
+      }
+    },
+    "Necromancer": {
+      "image_url": "https://media.tenor.com/dTTUgTeRMJkAAAAM/diablo-4-necromancer.gif",
+      "health": 65,
+      "mana": 100,
+      "strength": 6,
+      "agility": 9,
+      "description": "Master of death magic who commands undead minions.",
+      "skills": {
+        "Raise Dead": {"cost": 35, "damage_mult": 1.5, "effect": "summon", "description": "Summons a skeleton warrior to fight for you"},
+        "Life Drain": {"cost": 25, "damage_mult": 1.2, "effect": "lifesteal", "description": "Steals health from enemy and heals yourself"}
       }
     }
   },

@@ -46,17 +46,64 @@ class GameDatabase:
         with closing(sqlite3.connect(self.db_name)) as conn:
             cursor = conn.cursor()
             
-            # Create saves table
+            # Create saves table - FIXED: Changed "CREATES" to "CREATE" and added missing columns
             cursor.execute("""
-                CREATES TABLE IF NOT EXISTS game_saves (id INTEGER PRIMARY KEY AUTOINCREMENT,save_name TEXT NOT NULL,player_class TEXT,player_image TEXT,health INTEGER,max_health INTEGER,mana INTEGER,max_mana INTEGER,strength INTEGER,agility INTEGER,
-                    floor INTEGER,updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
+                CREATE TABLE IF NOT EXISTS game_saves (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    save_name TEXT NOT NULL,
+                    player_class TEXT,
+                    player_image TEXT,
+                    health INTEGER,
+                    max_health INTEGER,
+                    mana INTEGER,
+                    max_mana INTEGER,
+                    strength INTEGER,
+                    agility INTEGER,
+                    floor INTEGER,
+                    skill_points INTEGER,
+                    pending_skill_points BOOLEAN,
+                    in_combat BOOLEAN,
+                    enemy TEXT,
+                    enemy_health INTEGER,
+                    in_puzzle BOOLEAN,
+                    puzzle_solved BOOLEAN,
+                    message_log TEXT,
+                    game_over BOOLEAN,
+                    fighting_boss BOOLEAN,
+                    solved_puzzles TEXT,
+                    enemies_defeated INTEGER,
+                    defeated_enemies TEXT,
+                    encountered_by_floor TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )""")
             
             # Create combat_logs table
             cursor.execute("""
-                CREATE TABLE IF NOT EXISTS combat_logs ( id INTEGER PRIMARY KEY AUTOINCREMENT,save_id INTEGER, floor INTEGER, enemy_name TEXT,action TEXT,damage INTEGER,player_health INTEGER, enemy_health INTEGER,timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,FOREIGN KEY (save_id) REFERENCES game_saves(id) ON DELETE CASCADE)""")
+                CREATE TABLE IF NOT EXISTS combat_logs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    save_id INTEGER,
+                    floor INTEGER,
+                    enemy_name TEXT,
+                    action TEXT,
+                    damage INTEGER,
+                    player_health INTEGER,
+                    enemy_health INTEGER,
+                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (save_id) REFERENCES game_saves(id) ON DELETE CASCADE
+                )""")
             
             # Create achievements table
-            cursor.execute("""CREATE TABLE IF NOT EXISTS achievements (id INTEGER PRIMARY KEY AUTOINCREMENT,save_id INTEGER,achievement_type TEXT,achievement_name TEXT,description TEXT, unlocked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (save_id) REFERENCES game_saves(id) ON DELETE CASCADE)""")
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS achievements (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    save_id INTEGER,
+                    achievement_type TEXT,
+                    achievement_name TEXT,
+                    description TEXT,
+                    unlocked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (save_id) REFERENCES game_saves(id) ON DELETE CASCADE
+                )""")
             
             conn.commit()
     
@@ -77,9 +124,35 @@ class GameDatabase:
             existing = cursor.fetchone()
             
             if existing:
-                # Update existing save
-                cursor.execute(
-                    , (
+                # Update existing save - FIXED: Added SQL query string
+                cursor.execute("""
+                    UPDATE game_saves SET 
+                        player_class = ?,
+                        player_image = ?,
+                        health = ?,
+                        max_health = ?,
+                        mana = ?,
+                        max_mana = ?,
+                        strength = ?,
+                        agility = ?,
+                        floor = ?,
+                        skill_points = ?,
+                        pending_skill_points = ?,
+                        in_combat = ?,
+                        enemy = ?,
+                        enemy_health = ?,
+                        in_puzzle = ?,
+                        puzzle_solved = ?,
+                        message_log = ?,
+                        game_over = ?,
+                        fighting_boss = ?,
+                        solved_puzzles = ?,
+                        enemies_defeated = ?,
+                        defeated_enemies = ?,
+                        encountered_by_floor = ?,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE save_name = ?
+                """, (
                     session_state.player_class,
                     session_state.player_image,
                     session_state.health,
@@ -107,8 +180,15 @@ class GameDatabase:
                 ))
                 save_id = existing[0]
             else:
-                # Insert new save
-                cursor.execute(, (
+                # Insert new save - FIXED: Added SQL query string
+                cursor.execute("""
+                    INSERT INTO game_saves (
+                        save_name, player_class, player_image, health, max_health, mana, max_mana,
+                        strength, agility, floor, skill_points, pending_skill_points, in_combat,
+                        enemy, enemy_health, in_puzzle, puzzle_solved, message_log, game_over,
+                        fighting_boss, solved_puzzles, enemies_defeated, defeated_enemies, encountered_by_floor
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
                     save_name,
                     session_state.player_class,
                     session_state.player_image,
@@ -136,10 +216,12 @@ class GameDatabase:
                 ))
                 save_id = cursor.lastrowid
             
-            # Log combat action if in combat
+            # Log combat action if in combat - FIXED: Added SQL query string
             if session_state.in_combat and session_state.enemy:
-                cursor.execute(
-                    , (
+                cursor.execute("""
+                    INSERT INTO combat_logs (save_id, floor, enemy_name, player_health, enemy_health)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (
                     save_id,
                     session_state.floor,
                     session_state.enemy.get('name', 'Unknown'),
@@ -181,10 +263,16 @@ class GameDatabase:
             boss_name = session_state.enemy.get('name', 'Boss')
             achievements.append(('boss', f'Slayer of {boss_name}', f'Defeated {boss_name}'))
         
-        # Save achievements
+        # Save achievements - FIXED: Added SQL query string
         for achievement_type, name, description in achievements:
-            cursor.execute(
-                , (save_id, achievement_type, name, description, save_id, name))
+            cursor.execute("""
+                INSERT OR IGNORE INTO achievements (save_id, achievement_type, achievement_name, description)
+                SELECT ?, ?, ?, ?
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM achievements 
+                    WHERE save_id = ? AND achievement_name = ?
+                )
+            """, (save_id, achievement_type, name, description, save_id, name))
     
     def load_game(self, save_name):
         """Load game state from database"""
@@ -214,7 +302,8 @@ class GameDatabase:
             bool_fields = ['pending_skill_points', 'in_combat', 'in_puzzle', 
                           'puzzle_solved', 'game_over', 'fighting_boss']
             for field in bool_fields:
-                save_data[field] = bool(save_data[field])
+                if field in save_data:
+                    save_data[field] = bool(save_data[field])
             
             return save_data
     
@@ -227,24 +316,41 @@ class GameDatabase:
             return cursor.rowcount > 0
     
     def list_saves(self):
-        """List all saved games"""
+        """List all saved games - FIXED: Added SQL query string"""
         with closing(sqlite3.connect(self.db_name)) as conn:
             cursor = conn.cursor()
-            cursor.execute()
+            cursor.execute("""
+                SELECT save_name, player_class, floor, created_at, updated_at 
+                FROM game_saves 
+                ORDER BY updated_at DESC
+            """)
             return cursor.fetchall()
     
     def get_achievements(self, save_name):
-        """Get achievements for a saved game"""
+        """Get achievements for a saved game - FIXED: Added SQL query string"""
         with closing(sqlite3.connect(self.db_name)) as conn:
             cursor = conn.cursor()
-            cursor.execute(, (save_name,))
+            cursor.execute("""
+                SELECT a.achievement_name, a.description, a.unlocked_at 
+                FROM achievements a
+                JOIN game_saves s ON a.save_id = s.id
+                WHERE s.save_name = ?
+                ORDER BY a.unlocked_at DESC
+            """, (save_name,))
             return cursor.fetchall()
     
     def get_combat_history(self, save_name, limit=10):
-        """Get combat history for a saved game"""
+        """Get combat history for a saved game - FIXED: Added SQL query string"""
         with closing(sqlite3.connect(self.db_name)) as conn:
             cursor = conn.cursor()
-            cursor.execute(, (save_name, limit))
+            cursor.execute("""
+                SELECT c.floor, c.enemy_name, c.action, c.damage, c.player_health, c.enemy_health, c.timestamp
+                FROM combat_logs c
+                JOIN game_saves s ON c.save_id = s.id
+                WHERE s.save_name = ?
+                ORDER BY c.timestamp DESC
+                LIMIT ?
+            """, (save_name, limit))
             return cursor.fetchall()
 
 
@@ -253,7 +359,6 @@ db = GameDatabase()
 
 
 def apply_skill_points(hp_points, mana_points, str_points, agi_points):
-   
     total = hp_points + mana_points + str_points + agi_points
     if total > st.session_state.skill_points:
         st.error(f"Only {st.session_state.skill_points} skill points available.")
@@ -275,7 +380,6 @@ def apply_skill_points(hp_points, mana_points, str_points, agi_points):
 
 
 def player_attack(skill=None):
-   
     if not st.session_state.in_combat or st.session_state.game_over:
         return
 
@@ -310,7 +414,6 @@ def player_attack(skill=None):
 
 
 def start_game(chosen_class):
-
     stats = CLASSES[chosen_class]
     st.session_state.update(
         player_class=chosen_class,
@@ -520,11 +623,11 @@ if not st.session_state.player_class:
     st.markdown("---")
     st.subheader("New Game")
     
-    cols = st.columns(3)
+    cols = st.columns(7)
     for i, (c, info) in enumerate(CLASSES.items()):
         with cols[i]:
             st.subheader(c)
-            st.image(info["image_url"], width=200)
+            st.image(info["image_url"], width=800)
             st.write(info["description"])
             st.write(f"Health: {info['health']}")
             st.write(f"Mana: {info['mana']}")
@@ -536,7 +639,7 @@ if not st.session_state.player_class:
 else:
     # Main game interface
     st.sidebar.header(f"Status - Floor {st.session_state.floor}")
-    st.sidebar.image(st.session_state.player_image, width=200)
+    st.sidebar.image(st.session_state.player_image, width=800)
     st.sidebar.write(f"Class: {st.session_state.player_class}")
     st.sidebar.progress(st.session_state.health / st.session_state.max_health, 
                        text=f"❤ Health: {st.session_state.health}/{st.session_state.max_health}")

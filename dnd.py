@@ -577,22 +577,18 @@ def rest():
     st.session_state.mana += mana_amount
     st.session_state.message_log.append(f"You rest and recover {heal_amount} HP and {mana_amount} mana.")
     
-    # Save game after resting
     if hasattr(st.session_state, 'current_save_name'):
         db.save_game(st.session_state.current_save_name, st.session_state)
     try_encounter()
 
 
-# Initialize game state
 if "player_class" not in st.session_state:
     general.init_game(st.session_state, FLOOR_STORY[0])
 
 
-# Class selection screen
 if not st.session_state.player_class:
     st.header("Choose Your Starter Class")
     
-    # Load saved games section
     saves = db.list_saves()
     if saves:
         with st.expander("📂 Load Saved Game", expanded=False):
@@ -608,7 +604,6 @@ if not st.session_state.player_class:
                     if st.button("Load", key=f"load_{save_name}"):
                         save_data = db.load_game(save_name)
                         if save_data:
-                            # Update session state
                             for key, value in save_data.items():
                                 if key not in ['id', 'save_name', 'created_at', 'updated_at']:
                                     st.session_state[key] = value
@@ -622,22 +617,52 @@ if not st.session_state.player_class:
     
     st.markdown("---")
     st.subheader("New Game")
+
+    classes_list = list(CLASSES.items())
     
-    cols = st.columns(7)
-    for i, (c, info) in enumerate(CLASSES.items()):
-        with cols[i]:
+    cols1 = st.columns(3)
+    for i, (c, info) in enumerate(classes_list[:3]):
+        with cols1[i]:
             st.subheader(c)
-            st.image(info["image_url"], width=800)
+            st.image(info["image_url"], width=200)
             st.write(info["description"])
             st.write(f"Health: {info['health']}")
             st.write(f"Mana: {info['mana']}")
             st.write(f"Strength: {info['strength']}")
             st.write(f"Agility: {info['agility']}")
-            if st.button(f"Select {c}"):
+            if st.button(f"Select {c}", key=f"select_{c}"):
+                start_game(c)
+                st.rerun()
+
+    cols2 = st.columns(3)
+    for i, (c, info) in enumerate(classes_list[3:6]):
+        with cols2[i]:
+            st.subheader(c)
+            st.image(info["image_url"], width=200)
+            st.write(info["description"])
+            st.write(f"Health: {info['health']}")
+            st.write(f"Mana: {info['mana']}")
+            st.write(f"Strength: {info['strength']}")
+            st.write(f"Agility: {info['agility']}")
+            if st.button(f"Select {c}", key=f"select_{c}"):
+                start_game(c)
+                st.rerun()
+    
+    if len(classes_list) > 6:
+        c, info = classes_list[6]
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            st.subheader(c)
+            st.image(info["image_url"], width=200)
+            st.write(info["description"])
+            st.write(f"Health: {info['health']}")
+            st.write(f"Mana: {info['mana']}")
+            st.write(f"Strength: {info['strength']}")
+            st.write(f"Agility: {info['agility']}")
+            if st.button(f"Select {c}", key=f"select_{c}"):
                 start_game(c)
                 st.rerun()
 else:
-    # Main game interface
     st.sidebar.header(f"Status - Floor {st.session_state.floor}")
     st.sidebar.image(st.session_state.player_image, width=800)
     st.sidebar.write(f"Class: {st.session_state.player_class}")
